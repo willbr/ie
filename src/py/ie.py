@@ -1,8 +1,7 @@
 import sys
-from tokenise import tokenise_file, tokenise_lines
-from parse1_indent import parse_indent
-from parse2_syntax import parse_syntax, puts_expr
-from pprint import pprint
+from .tokenise import tokenise_file, tokenise_lines
+from .parse1_indent import parse_indent
+from .parse2_syntax import parse_syntax, puts_expr
 
 
 def parse_file(filename):
