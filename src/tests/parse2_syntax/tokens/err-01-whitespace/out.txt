@@ -1,7 +1,5 @@
 [
-    [a =
-        [ie/neoteric sum
-            [ie/infix 1 , 2 , 3]]
-        ie/newline]
-    [a = sum
-        [ie/infix 1 , 2 , 3]]]
+    [when true ie/newline
+        [puts
+            [ie/prefix + 1 2]
+            ie/newline]]]
