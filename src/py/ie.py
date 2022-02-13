@@ -1,21 +1,7 @@
 import sys
 from .tokenise import tokenise_file, tokenise_lines
 from .parse1_indent import parse_indent
-from .parse2_syntax import parse_syntax, puts_expr
-
-
-def parse_file(filename):
-    tokens  = tokenise_file(filename)
-    tokens2 = parse_indent(tokens)
-    ast     = parse_syntax(tokens2)
-    return ast
-
-
-def parse_lines(s):
-    tokens  = tokenise_lines(s)
-    tokens2 = parse_indent(tokens)
-    ast     = parse_syntax(tokens2)
-    return ast
+from .parse2_syntax import parse_file, parse_lines, puts_expr
 
 
 if __name__ == "__main__":

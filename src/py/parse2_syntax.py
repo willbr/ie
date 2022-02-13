@@ -1,24 +1,30 @@
 from pprint import pprint
 from .tokenise import tokenise_file
 from .parse1_indent import parse_indent
+from .promote import promote_token
 
 import fileinput
 import sys
 
 
-def parse_file(filename):
+def parse_file(filename, promote=promote_token):
     tokens  = tokenise_file(filename)
     tokens2 = parse_indent(tokens)
-    ast = parse_syntax(tokens2)
+    ast = parse_syntax(tokens2, promote)
     return ast
 
 
-def parse_syntax(tokens):
+def parse_lines(s, promote=promote_token):
+    tokens  = tokenise_lines(s)
+    tokens2 = parse_indent(tokens)
+    ast     = parse_syntax(tokens2, promote)
+    return ast
+
+
+def parse_syntax(tokens, promote):
     stack = [[]]
 
-    for line in tokens:
-        token = line.strip()
-
+    for token in tokens:
         if token == '[':
             stack.append([])
         elif token == '(':
@@ -37,7 +43,8 @@ def parse_syntax(tokens):
                 pass
             stack[-1].append(tos)
         else:
-            stack[-1].append(token)
+            v = promote(token)
+            stack[-1].append(v)
 
     prog = stack[0]
     return prog
