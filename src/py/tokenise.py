@@ -5,7 +5,19 @@ from rich import print
 from rich.markup import escape
 
 
+class Token(str):
+    def __new__(cls, content, *args, **kwargs):
+        return super().__new__(cls, content)
+
+    def __init__(self, content, col_offset=0, lineno=0, filename=""):
+        self.filename = filename
+        self.lineno = lineno
+        self.col_offset = col_offset
+
+
 class Tokeniser():
+    filename = ""
+    lineno = 0
     file = None
     i = 0
     line = ""
@@ -13,6 +25,7 @@ class Tokeniser():
     next_token = None
     breakchars = " \t\n,;()[]{}"
     prefix = {}
+
 
     def __init__(self):
         self.prefix['"'] = read_string
@@ -35,6 +48,7 @@ class Tokeniser():
     def get_line(self):
         self.line = next(self.file)
         self.len_line = len(self.line)
+        self.lineno += 1
         self.i = 0
 
 
@@ -55,10 +69,12 @@ class Tokeniser():
         next_char = self.line[self.i]
 
         if next_char in '({[':
-            self.push_token(word)
+            t = self.new_token(word, start_pos)
+            self.push_token(t)
+
             word = "ie/neoteric"
 
-        return word
+        return self.new_token(word, col_offset=start_pos)
 
 
     def push_token(self, token):
@@ -71,20 +87,22 @@ class Tokeniser():
 
     def next_word(self):
         if self.next_token:
-            word = self.next_token
+            t = self.next_token
             self.next_token = None
-            return word
+            return t
 
         if self.i >= self.len_line:
             self.get_line()
 
+        col_offset = self.i
         prefix_fn = self.prefix.get(self.line[self.i], None)
 
         if self.line[self.i] == '\n':
             self.get_line()
             self.chomp(' ')
             if self.i > 0:
-                self.push_token(' ' * self.i)
+                t = self.new_token(' ' * self.i, col_offset)
+                self.push_token(t)
             word = 'ie/newline'
 
         elif self.line[self.i] == '\t':
@@ -95,6 +113,7 @@ class Tokeniser():
 
         elif self.line[self.i] in self.breakchars:
             word = self.line[self.i]
+            t = self.new_token(word)
             self.i += 1
 
             try:
@@ -103,25 +122,42 @@ class Tokeniser():
                 next_char = ''
 
             if word == '[':
-                self.push_token("ie/prefix")
+                pt = self.new_token("ie/prefix", self.i - 1)
+                self.push_token(pt)
             elif word == ',':
                 if next_char not in ' \n':
-                    self.die("comma must be followed by white space")
+                    nt = self.new_token(next_char)
+                    self.die(nt, "comma must be followed by white space")
             elif word in ')}]':
                 if next_char not in ' ,\n)}]':
-                    self.die("close marker must be followed by another close marker, comma  or whitespace")
+                    self.die(t, f"close marker '{word}' must be followed by another close marker ')}}]', comma  or whitespace")
 
         else:
             word = self.read_token()
 
         self.chomp(' ')
-        return word
+        return self.new_token(word, col_offset)
 
-    def die(self, msg):
+
+    def new_token(self, content, col_offset=None, lineno=None, filename=None):
+        if col_offset == None:
+            col_offset = self.i + 1
+
+        if lineno == None:
+            lineno = self.lineno
+
+        if filename == None:
+            filename = self.filename
+
+        return Token(content, col_offset, lineno, filename)
+
+
+    def die(self, t, msg):
         l = self.line.strip()
         i = self.i
         err_msg =textwrap.dedent(f"""
-        {msg}
+        {t.filename}:{t.lineno}:{t.col_offset}: {msg}
+
         {l}
         {" "*i}^
         """).strip()
@@ -145,6 +181,7 @@ def read_string(t):
 
 def tokenise_file(filename):
     t = Tokeniser()
+    t.filename = filename
     t.file = fileinput.input(filename)
     tokens  = t.read_tokens()
     return tokens
@@ -152,6 +189,7 @@ def tokenise_file(filename):
 
 def tokenise_lines(lines):
     t = Tokeniser()
+    t.filename = "lines"
     t.file = (line for line in lines)
     tokens  = t.read_tokens()
     return tokens
@@ -163,5 +201,6 @@ if __name__ == "__main__":
         tokens  = tokenise_file(filename)
         print('\n'.join(tokens))
     except SyntaxError as e:
-        print(f"[r]ERROR:[/] {escape(str(e))}")
+        print(f"[r]ERROR:[/]\n{escape(str(e))}")
+        exit(1)
 
