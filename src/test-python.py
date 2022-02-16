@@ -1,11 +1,15 @@
-from rich import print
 from rich.markup import escape
 from pathlib import Path
 from py.tokenise import tokenise_file
 from py.parse1_indent import parse_indent
 from py.parse2_syntax import parse_file, expr_to_string
 from difflib import unified_diff
+from textwrap import dedent
+from rich.console import Console
 
+console = Console(markup=False)
+python_print = print
+print = console.print
 
 def read_file(fn):
     with open(fn) as f:
@@ -45,8 +49,9 @@ for folders, reader in specs:
         out_file = fld.joinpath("out.txt")
 
         if fld.stem.startswith("err-"):
+            result = []
             try:
-                tokens = list(reader(in_file))
+                result = list(reader(in_file))
                 print(fld)
                 print(fld.stem)
                 raise ValueError("test didn't fail")
@@ -56,18 +61,43 @@ for folders, reader in specs:
             result = list(reader(in_file))
         # print(list(map(escape,result)))
 
-        lines = read_file(out_file)
+        expected_result = read_file(out_file)
         # print(lines)
-        if lines == []:
+        if expected_result == [] and \
+            result != [] and \
+            not fld.stem.startswith("err-"):
             with open(out_file, 'w') as f:
+                print(f"Writing to {repr(out_file)}:")
+                print(result)
                 f.write('\n'.join(result))
+        else:
+            pass
+            # print("er:")
+            # print(repr(out_file))
+            # print(expected_result)
+            # print()
 
-        diff = list(unified_diff(result, lines))
+        diff = list(unified_diff(result, expected_result))
         if diff:
-            print(repr(fld))
-            print(result)
-            print(lines)
-            print(diff)
-            print(repr(fld))
+            diff_lines = '\n'.join(diff)
+            input_lines = read_file(in_file)
+            print(f"""
+{repr(fld)}
+
+input:
+{repr(in_file)}
+{input_lines}
+
+result:
+{result}
+
+expected:
+{repr(out_file)}
+{expected_result}
+
+diff:
+{diff_lines}
+{repr(fld)}
+""")
             exit(1)
 
