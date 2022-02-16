@@ -1,5 +1,21 @@
 include-lib "stdio.h"
+include-lib "stdlib.h"
 
-def main
+def main(argc int, argv **char)
     puts "hi"
+
+    if argc != 2
+        fprintf stderr "missing arg"
+        exit 1
+
+
+    in_filename := *(argv+1)
+
+    comment f := fopen(in_filename, "r")
+
+    comment println "{argc d}"
+    comment println "0 {*(argv+0) s}"
+    comment println "1 {*(argv+1) s}"
+
+    puts "bye"
 

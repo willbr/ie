@@ -1,7 +1,7 @@
-f=..\tests\tokeniser\c\c00-hello-world\in.txt
+f=../tests/tokeniser/c/c00-hello-world/in.txt
 
 w:
-	watchexec -cr "make tokens3"
+	watchexec -cr "make tokens3" --ignore "*.c"
 
 build/%.c: %.c.ie
 	toco -o $@ $<
