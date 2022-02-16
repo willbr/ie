@@ -115,19 +115,15 @@ def puts_expr(x, print_brackets=True):
     print("")
 
 
-def remove_newline(prog):
+def remove_newline(prog, newline='ie/newline'):
+    return remove_markers(porg, [newline])
+
+
+def remove_markers(prog, markers=['ie/newline', 'ie/backslash']):
     if is_atom(prog):
         return prog
 
-    return [remove_newline(x) for x in prog if x != 'ie/newline']
-
-
-def remove_markers(prog):
-    if is_atom(prog):
-        return prog
-
-    markers = ['ie/newline', 'ie/backslash']
-    return [remove_markers(x) for x in prog if x not in markers]
+    return [remove_markers(x, markers) for x in prog if x not in markers]
 
 
 if __name__ == '__main__':
