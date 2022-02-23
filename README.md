@@ -57,6 +57,7 @@ becomes:
     version 0
 
 ## heredocs
+
     puts <<end
     hello,
     How are you doing today?
@@ -76,14 +77,26 @@ one token per line
 
 or
 
-    row,col,token
+    file:row:col:token
 
 example
 
-    1,1,def
-    1,1,main
-    1,1,ie/newline
-    2,1,    
-    2,5,puts
-    2,10,"hello"
+    in.txt:1:1:def
+    in.txt:1:1:main
+    in.txt:1:1:ie/newline
+    in.txt:2:1:    
+    in.txt:2:5:puts
+    in.txt:2:10:"hello"
+
+## add blank lines
+
+    put "hi"
+
+    puts "bye"
+
+into
+
+    [puts "hi" ie/newline]
+    [ie/newline]
+    [puts "bye" ie/newline]
 
