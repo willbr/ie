@@ -5,17 +5,27 @@ def main(argc int, argv **char)
     puts "hi"
 
     if argc != 2
-        fprintf stderr "missing arg"
-        exit 1
+        die "missing arg"
 
+    var filename *char *(argv + 1)
+    println "{filename s}"
 
-    in_filename := *(argv+1)
+    var f *FILE fopen(filename, "r")
+    if f == null
+        die "f is null"
 
-    comment f := fopen(in_filename, "r")
-
-    comment println "{argc d}"
-    comment println "0 {*(argv+0) s}"
-    comment println "1 {*(argv+1) s}"
+    var buffer *char malloc(256)
+    var num size_t 0
+    num = getline2(buffer, 256, f)
 
     puts "bye"
+
+
+def die(msg *char)
+    println "ERROR: {msg s}"
+    exit 1
+
+
+def getline2(buffer *char, size size_t, f *FILE) size_t
+    die "todo"
 
