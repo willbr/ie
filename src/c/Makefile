@@ -1,4 +1,5 @@
-f=../tests/tokeniser/c/c00-hello-world/in.txt
+f := ../tests/tokeniser/c/c00-hello-world/in.txt
+fw := $(subst /,\,$(f))
 
 w:
 	watchexec -cr "make tokens3" --ignore "*.c"
@@ -12,6 +13,6 @@ tokens2: tokens2.c
 
 tokens3: build/tokens3.c
 	toco -o $< tokens3.c.ie 
-	type $f
+	type $(fw)
 	tcc -run $< $f
 
