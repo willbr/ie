@@ -3,6 +3,8 @@ import textwrap
 import sys
 from rich import print
 from rich.markup import escape
+from rich.traceback import install
+install(show_locals=True)
 
 
 class Token(str):
