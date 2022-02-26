@@ -36,6 +36,10 @@ class Tokeniser():
         self.file.close()
 
 
+    def __repr__(self):
+        return f"<Tokeniser self.line={repr(self.line)}, {self.i=}"
+
+
     def read_tokens(self):
         try:
             while True:
