@@ -1,0 +1,8 @@
+def main
+    puts "stuff"
+
+    double
+        1 + 1
+
+    return 0
+
