@@ -6,6 +6,7 @@ I love:
 https://dwheeler.com/readable/alternative-s-expressions.html
 
 ## reader
+
     read first char
     is it a breakchar char? " \t\n,;()[]{}'
           space
@@ -42,6 +43,7 @@ pointer methods
     ! not
 
 ## add promotion stage
+
 apply a list of transformations to a token
 
     *something
@@ -65,6 +67,7 @@ becomes:
     end
 
 ## regex
+
 create a regex object
 
     /^haha$/
