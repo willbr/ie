@@ -116,7 +116,7 @@ def puts_expr(x, print_brackets=True):
 
 
 def remove_newline(prog, newline='ie/newline'):
-    return remove_markers(porg, [newline])
+    return remove_markers(prog, [newline])
 
 
 def remove_markers(prog, markers=['ie/newline', 'ie/backslash']):
