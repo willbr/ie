@@ -17,6 +17,11 @@ else
 	ignore := echo ignore
 endif
 
+wwip:
+	watchexec -cr "make wip"
+
+wip:
+	python -m src.py
 
 pytok-errors: 
 	- python src/py/tokenise.py src/tests/tokeniser/tokens/err-00-comma/in.txt
