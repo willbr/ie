@@ -117,9 +117,12 @@ class Tokeniser():
         if self.line[self.i] == '\n':
             self.get_line()
             self.chomp(' ')
-            if self.i > 0:
-                t = self.new_token(' ' * self.i, col_offset)
-                self.push_token(t)
+            try:
+                if self.i > 0 and self.line[self.i] != '\n':
+                    t = self.new_token(' ' * self.i, col_offset)
+                    self.push_token(t)
+            except IndexError:
+                pass
             word = 'ie/newline'
 
         elif self.line[self.i] == '\t':
