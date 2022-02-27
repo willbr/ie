@@ -8,14 +8,14 @@ from rich import print
 
 if __name__ == "__main__":
     example = dedent("""
-    a
+    puts "hi"
 
-        b
+    define square(x)
+        x * x
 
-        c
+    puts square(10)
 
-    d
-
+    puts "bye"
     """)
     print('example', repr(example))
     print(example)
@@ -39,9 +39,6 @@ if __name__ == "__main__":
     print('*' * 20)
 
     sast = remove_newline(ast)
-    puts_expr(sast)
-
-    print('*' * 20)
 
     for x in sast:
         puts_expr(x)
