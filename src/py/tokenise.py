@@ -4,7 +4,13 @@ import sys
 from rich import print
 from rich.markup import escape
 from rich.traceback import install
+from rich.console import Console
+
 install(show_locals=True)
+
+console = Console(markup=False)
+python_print = print
+print = console.print
 
 
 class Token(str):
@@ -72,9 +78,14 @@ class Tokeniser():
         assert len_word
         word = self.line[start_pos:self.i]
 
-        next_char = self.line[self.i]
+        try:
+            next_char = self.line[self.i]
+        except IndexError:
+            next_char = None
 
-        if next_char in '({[':
+        if next_char == None:
+            pass
+        elif next_char in '({[':
             t = self.new_token(word, start_pos)
             self.push_token(t)
 

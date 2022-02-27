@@ -3,15 +3,17 @@ import fileinput
 from .tokenise import tokenise_file, tokenise_lines
 
 class IndentParser():
-    input_tokens = None
-    new_indent = 0
-    cur_indent = -1
-    indent_width = 4
-    next_token = None
-
-
     def __init__(self, tokens):
+        self.indent_width = 4
+        self.new_indent   = 0
+        self.cur_indent   = -1
         self.input_tokens = tokens
+        self.next_token   = None
+
+
+    def __repr__(self):
+        return f"<IndentPaser {repr(self.next_token)}>"
+
 
     def read_token(self):
         if self.next_token:
@@ -49,7 +51,9 @@ class IndentParser():
                         assert False # unmatch syntax
                     yield(token)
                     token = self.peek_token()
+                    self.blank_lines = 0
                     while token == 'ie/newline':
+                        self.blank_lines += 1
                         _ = self.read_token()
                         token = self.peek_token()
 
@@ -75,16 +79,22 @@ class IndentParser():
                     elif diff > 1:
                         assert False
                     elif diff == 1:
+                        for i in range(self.blank_lines):
+                            yield('ie/newline')
                         self.cur_indent += 1
                         yield('[')
                     elif diff == 0:
                         yield(']')
+                        for i in range(self.blank_lines):
+                            yield('ie/newline')
                         yield('[')
                     else:
                         for i in range(abs(diff)):
                             self.cur_indent -= 1
                             yield(']')
                         yield(']')
+                        for i in range(self.blank_lines):
+                            yield('ie/newline')
                         yield('[')
                 elif token in '({[':
                     yield(token)
