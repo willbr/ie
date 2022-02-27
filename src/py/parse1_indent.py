@@ -41,11 +41,15 @@ class IndentParser():
         syntax_stack = []
 
         try:
+            self.cur_indent = -1
+
             token = self.peek_token()
             while token == 'ie/newline':
                 _ = self.read_token()
                 yield(token)
                 token = self.peek_token()
+
+            self.cur_indent = 0
 
             yield('[')
 
