@@ -22,4 +22,3 @@ ie/newline
 getchar
 ie/newline
 ie/newline
-    

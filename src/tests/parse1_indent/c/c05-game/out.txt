@@ -3,6 +3,7 @@ include-lib
 "stdio.h"
 ie/newline
 ]
+ie/newline
 [
 define
 true
@@ -15,6 +16,7 @@ false
 0
 ie/newline
 ]
+ie/newline
 [
 typedef
 f32
@@ -28,6 +30,7 @@ unsigned
 int
 ie/newline
 ]
+ie/newline
 [
 struct
 ball
@@ -53,6 +56,7 @@ f32
 ie/newline
 ]
 ]
+ie/newline
 [
 globals
 ie/newline
@@ -89,6 +93,7 @@ ball
 ie/newline
 ]
 ]
+ie/newline
 [
 def
 ie/neoteric
@@ -108,6 +113,7 @@ game-is-running
 true
 ie/newline
 ]
+ie/newline
 [
 while
 game-is-running
@@ -121,12 +127,14 @@ render
 ie/newline
 ]
 ]
+ie/newline
 [
 return
 0
 ie/newline
 ]
 ]
+ie/newline
 [
 def
 update
@@ -157,6 +165,7 @@ step
 ie/newline
 ]
 ]
+ie/newline
 [
 def
 render

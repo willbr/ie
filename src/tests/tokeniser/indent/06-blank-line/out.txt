@@ -4,7 +4,6 @@ ie/newline
     
 nop
 ie/newline
-    
 ie/newline
     
 nop

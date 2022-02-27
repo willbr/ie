@@ -3,6 +3,7 @@ import
 stdio
 ie/newline
 ]
+ie/newline
 [
 def
 ie/neoteric

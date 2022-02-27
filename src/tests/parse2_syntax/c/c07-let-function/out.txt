@@ -8,6 +8,8 @@
                 [ie/infix 10]]
             ie/newline]
         [return a ie/newline]]
+    ie/newline
+    ie/newline
     [def
         [ie/neoteric double
             [ie/infix n int]]

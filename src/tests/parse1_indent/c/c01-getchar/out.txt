@@ -3,6 +3,7 @@ include-lib
 "stdio.h"
 ie/newline
 ]
+ie/newline
 [
 func-decl
 ie/neoteric
@@ -13,6 +14,7 @@ void
 int
 ie/newline
 ]
+ie/newline
 [
 def
 main

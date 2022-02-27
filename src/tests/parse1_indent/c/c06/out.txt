@@ -1,11 +1,10 @@
-[
 ie/newline
-]
 [
 include-lib
 "stdio.h"
 ie/newline
 ]
+ie/newline
 [
 def
 ie/neoteric
