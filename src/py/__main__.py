@@ -1,6 +1,6 @@
 from .tokenise import tokenise_file, tokenise_lines
 from .parse1_indent import parse_indent
-from .parse2_syntax import parse_syntax, puts_expr
+from .parse2_syntax import parse_syntax, puts_expr, remove_newline
 from .promote import promote_token
 from textwrap import dedent
 from itertools import tee
@@ -8,15 +8,15 @@ from rich import print
 
 if __name__ == "__main__":
     example = dedent("""
-    a
+    puts "hi"
 
-        b
+    define square(x)
+        x * x
 
-        c
+    puts square(10)
 
-    d
-
-    """).strip()
+    puts "bye"
+    """)
     print('example', repr(example))
     print(example)
 
@@ -30,5 +30,18 @@ if __name__ == "__main__":
     print('tokens2', ' '.join(map(repr, preview)))
 
     ast     = parse_syntax(tokens2, promote_token)
-    puts_expr(ast)
+
+    print('*' * 20)
+
+    for x in ast:
+        puts_expr(x)
+
+    print('*' * 20)
+
+    sast = remove_newline(ast)
+
+    for x in sast:
+        puts_expr(x)
+
+    print('*' * 20)
 

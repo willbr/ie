@@ -1,5 +1,6 @@
 [
     [import stdio ie/newline]
+    ie/newline
     [def
         [ie/neoteric main
             [ie/infix argc int , argv **char]]

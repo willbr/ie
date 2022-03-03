@@ -5,6 +5,41 @@ Syntax = Lisp + Python
 I love:
 https://dwheeler.com/readable/alternative-s-expressions.html
 
+## example
+
+from
+
+    puts "hi"
+
+    define square(x)
+        x * x
+
+    puts square(10)
+
+    puts "bye"
+
+
+to
+
+    ie/newline
+    [puts "hi" ie/newline]
+    ie/newline
+    [define [ie/neoteric square [ie/infix x]] ie/newline
+        [x * x ie/newline]]
+    ie/newline
+    [puts [ie/neoteric square [ie/infix 10]] ie/newline]
+    ie/newline
+    [puts "bye"]
+
+or without markers
+
+    [puts "hi"]
+    [define [ie/neoteric square [ie/infix x]]
+        [x * x]]
+    [puts [ie/neoteric square [ie/infix 10]]]
+    [puts "bye"]
+
+
 ## reader
 
     read first char
@@ -90,16 +125,4 @@ example
     in.txt:2:1:    
     in.txt:2:5:puts
     in.txt:2:10:"hello"
-
-## add blank lines
-
-    put "hi"
-
-    puts "bye"
-
-into
-
-    [puts "hi" ie/newline]
-    [ie/newline]
-    [puts "bye" ie/newline]
 

@@ -8,6 +8,7 @@ emit
 ie/newline
 ]
 ]
+ie/newline
 [
 :
 space
@@ -25,6 +26,7 @@ space
 loop
 ie/newline
 ]
+ie/newline
 [
 :
 star
@@ -45,6 +47,7 @@ star
 loop
 ie/newline
 ]
+ie/newline
 [
 :
 margin
@@ -68,6 +71,7 @@ margin
 stars
 ie/newline
 ]
+ie/newline
 [
 :
 f
@@ -97,6 +101,7 @@ cr
 ie/newline
 ]
 ]
+ie/newline
 [
 f
 ]

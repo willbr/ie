@@ -6,7 +6,7 @@ class IndentParser():
     def __init__(self, tokens):
         self.indent_width = 4
         self.new_indent   = 0
-        self.cur_indent   = -1
+        self.cur_indent   = 0
         self.input_tokens = tokens
         self.next_token   = None
 
@@ -41,8 +41,18 @@ class IndentParser():
         syntax_stack = []
 
         try:
-            yield('[')
+            self.cur_indent = -1
+
+            token = self.peek_token()
+            while token == 'ie/newline':
+                _ = self.read_token()
+                yield(token)
+                token = self.peek_token()
+
             self.cur_indent = 0
+
+            yield('[')
+
             while True:
                 token = self.read_token()
                 if token == 'ie/newline':

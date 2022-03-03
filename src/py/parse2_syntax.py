@@ -61,7 +61,8 @@ def is_atom(x):
 
 
 def print_expr(x, depth=0, print_brackets=True):
-    print(expr_to_string(x, depth, print_brackets))
+    s = expr_to_string(x, depth, print_brackets)
+    print(s, end="")
 
 
 def expr_to_string(x, depth=0, print_brackets=True):
@@ -85,19 +86,27 @@ def expr_to_string(x, depth=0, print_brackets=True):
             buffer.append("\\\\")
         buffer.append("\n" + (depth+1) * "    ")
 
+    if car == 'ie/newline':
+        buffer.append("\n" + (depth+1) * "    ")
+
     buffer.append(expr_to_string(car, depth+1, print_brackets))
 
     prev_it = car
 
     for it in cdr:
         if is_atom(it):
-            if is_atom(prev_it):
+            if prev_it == 'ie/newline' and it == 'ie/newline':
+                pass
+            elif is_atom(prev_it):
                 buffer.append(" ")
             else:
                 buffer.append("\n" + (depth+1) * "    ")
                 if not print_brackets:
                     buffer.append("\\ ")
         else:
+            buffer.append("\n" + (depth+1) * "    ")
+
+        if prev_it == 'ie/newline' and it == 'ie/newline':
             buffer.append("\n" + (depth+1) * "    ")
 
         buffer.append(expr_to_string(it, depth+1, print_brackets))
@@ -112,7 +121,7 @@ def expr_to_string(x, depth=0, print_brackets=True):
 
 def puts_expr(x, print_brackets=True):
     print_expr(x, 0, print_brackets)
-    print("")
+    print()
 
 
 def remove_newline(prog, newline='ie/newline'):

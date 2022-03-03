@@ -8,6 +8,7 @@ ie/newline
 ie/newline
 ]
 ]
+ie/newline
 [
 double
 ie/newline
