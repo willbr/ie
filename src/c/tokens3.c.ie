@@ -15,8 +15,11 @@ def main(argc int, argv **char)
         die "f is null"
 
     var buffer *char malloc(256)
+    var size size_t 256
     var num size_t 0
-    num = getline2(buffer, 256, f)
+
+    while (num = getline(&buffer, &size, f)) != -1 
+        print "{num 2d} {buffer s}"
 
     puts "bye"
 
@@ -26,6 +29,31 @@ def die(msg *char)
     exit 1
 
 
-def getline2(buffer *char, size size_t, f *FILE) size_t
-    die "todo"
+def getline(buffer **char, size *size_t, f *FILE) size_t
+    if buffer == null
+        die "buffer is null"
+
+    if size == null
+        die "size is null"
+
+    if f == null
+        die "f is null"
+
+    var i int 0
+    var c int 0
+
+    while (i < (*size - 1)) and ((c = fgetc(f)) != EOF) and (c != '\n')
+        aref(deref(buffer), i) = c
+        i += 1
+
+    if c == '\n'
+        aref(deref(buffer), i) = c
+        i += 1
+
+    aref(deref(buffer), i) = '\0'
+
+    if c == EOF
+        return -1
+
+    return i
 
