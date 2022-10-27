@@ -18,7 +18,7 @@ else
 endif
 
 wwip:
-	watchexec -cr "make wip"
+	watchexec -cr -f "*.py" "make wip"
 
 wip:
 	python -m src.py

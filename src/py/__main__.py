@@ -15,19 +15,29 @@ if __name__ == "__main__":
 
     puts square(10)
 
-    puts "bye"
+    a = 5
+    puts (a < 10)
+
+    puts <<eof
+    bye
+    bye
+    baby
+
+    eof
     """)
+
     print('example', repr(example))
     print(example)
+    print('*' * 20)
 
     lines = example.splitlines(keepends=True)
     print('lines', repr(lines))
 
     preview, tokens = tee(tokenise_lines(lines))
-    print('tokens ', ' '.join(map(repr, preview)))
+    #print('tokens ', ' '.join(map(repr, preview)))
 
     preview, tokens2 = tee(parse_indent(tokens))
-    print('tokens2', ' '.join(map(repr, preview)))
+    #print('tokens2', ' '.join(map(repr, preview)))
 
     ast     = parse_syntax(tokens2, promote_token)
 

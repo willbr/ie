@@ -77,7 +77,7 @@ pointer methods
     ' quote
     ! not
 
-## add promotion stage
+## add promotion stage TODO
 
 apply a list of transformations to a token
 
@@ -89,11 +89,11 @@ becomes:
     [deref something]
     deref(something)
 
-## include version numbers
+## include version numbers TODO
 
     version 0
 
-## heredocs
+## heredocs Done
 
     puts <<end
     hello,
@@ -101,13 +101,13 @@ becomes:
     bye!
     end
 
-## regex
+## regex TODO
 
 create a regex object
 
     /^haha$/
 
-## stdout interface
+## stdout interface TODO
 
 one token per line
 

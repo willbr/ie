@@ -1,6 +1,3 @@
-import fileinput
-import textwrap
-import sys
 from rich import print
 from rich.markup import escape
 from rich.traceback import install
@@ -11,6 +8,12 @@ install(show_locals=True)
 console = Console(markup=False)
 python_print = print
 print = console.print
+
+#####################################################
+
+import fileinput
+import textwrap
+import sys
 
 
 class Token(str):
@@ -34,19 +37,18 @@ class Tokeniser():
     breakchars = " \t\n,;()[]{}"
     prefix = {}
 
-
     def __init__(self):
-        self.prefix['"'] = read_string
+        self.prefix = {
+                '"':  read_string,
+                '<<': read_heredoc,
+                }
         pass
-
 
     def __del__(self):
         self.file.close()
 
-
     def __repr__(self):
         return f"<Tokeniser self.line={repr(self.line)}, {self.i=}"
-
 
     def read_tokens(self):
         try:
@@ -56,23 +58,23 @@ class Tokeniser():
         except StopIteration:
             pass
 
-
     def get_line(self):
         self.line = next(self.file)
         self.len_line = len(self.line)
         self.lineno += 1
         self.i = 0
 
-
     def chomp(self, chars):
         while self.i < self.len_line and self.line[self.i] in chars:
             self.i += 1
 
+    def chomp_until(self, break_chars):
+        while self.i < self.len_line and self.line[self.i] not in break_chars:
+            self.i += 1
 
     def read_token(self):
         start_pos = self.i
-        while self.i < self.len_line and self.line[self.i] not in self.breakchars:
-            self.i += 1
+        self.chomp_until(self.breakchars)
 
         len_word = self.i - start_pos
         assert len_word
@@ -93,14 +95,12 @@ class Tokeniser():
 
         return self.new_token(word, col_offset=start_pos)
 
-
     def push_token(self, token):
         if self.next_token != None:
             print(repr(token))
             print(repr(self.next_token))
             assert False
         self.next_token = token
-
 
     def next_word(self):
         if self.next_token:
@@ -112,7 +112,11 @@ class Tokeniser():
             self.get_line()
 
         col_offset = self.i
-        prefix_fn = self.prefix.get(self.line[self.i], None)
+        lineno = self.lineno
+
+        c = self.line[self.i]
+        cc = self.line[self.i:self.i+2]
+        prefix_fn = self.prefix.get(c, self.prefix.get(cc, None))
 
         if self.line[self.i] == '\n':
             self.get_line()
@@ -156,7 +160,7 @@ class Tokeniser():
             word = self.read_token()
 
         self.chomp(' ')
-        return self.new_token(word, col_offset)
+        return self.new_token(word, col_offset, lineno)
 
 
     def new_token(self, content, col_offset=None, lineno=None, filename=None):
@@ -170,7 +174,6 @@ class Tokeniser():
             filename = self.filename
 
         return Token(content, col_offset, lineno, filename)
-
 
     def die(self, t, msg):
         l = self.line.strip()
@@ -198,6 +201,26 @@ def read_string(t):
     word = t.line[start_pos:t.i]
     return word
 
+def read_heredoc(t):
+    assert t.line[t.i] == '<'
+    t.i += 1
+    assert t.line[t.i] == '<'
+    t.i += 1
+    assert t.line[t.i] not in ' \t\n'
+    end_marker = t.line[t.i:].strip()
+    body = []
+    while True:
+        t.get_line()
+        line = t.line.strip()
+        if line == end_marker:
+            break
+
+        body.append(t.line)
+    word = ''.join(body)
+    assert word[-1] == '\n'
+    word = f'"{word[:-1]}"'
+
+    return word
 
 def tokenise_file(filename):
     t = Tokeniser()
@@ -206,14 +229,12 @@ def tokenise_file(filename):
     tokens  = t.read_tokens()
     return tokens
 
-
 def tokenise_lines(lines):
     t = Tokeniser()
     t.filename = "lines"
     t.file = (line for line in lines)
     tokens  = t.read_tokens()
     return tokens
-
 
 if __name__ == "__main__":
     filename = sys.argv[1]
