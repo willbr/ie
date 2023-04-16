@@ -6,8 +6,6 @@ import re
 from .utilities import (
         strip_newlines,
         split_on_newline,
-        maptree,
-        tree_values,
         hline,
         peek,
         )

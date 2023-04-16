@@ -32,7 +32,7 @@ wpytok-errors:
 
 
 all:
-	python -m indentexpr.tokeniser
+	python -m indentexpr.ast
 
 wall:
 	watchexec -cr "make all"

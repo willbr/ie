@@ -20,17 +20,6 @@ def peek(iterable):
     return zip(a, c)
 
 
-def maptree(fn, tree):
-    if isinstance(tree, Iterable) and not isinstance(tree, str) and not isinstance(tree, Token):
-        return [maptree(fn, leaf) for leaf in tree]
-    else:
-        return fn(tree)
-
-
-def tree_values(tree):
-    return maptree(lambda x: x.value, tree)
-
-
 def strip_newlines(tree):
     return [leaf for leaf in tree if getattr(leaf, 'type', None) != 'NEWLINE']
 
