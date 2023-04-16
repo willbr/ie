@@ -3,7 +3,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 import re
 
-from .utilitise import (
+from .utilities import (
         strip_newlines,
         split_on_newline,
         maptree,
