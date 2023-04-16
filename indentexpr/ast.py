@@ -128,11 +128,13 @@ def transform_infix(x):
     xx = [first_op, first_arg, second_arg]
 
     for i in range(3, len(x)):
-        t = ix[i]
+        t = x[i]
         if i % 2:
-            assert first_op == t
+            assert first_op.type == t.type
+            assert first_op.value == t.value
         else:
-            xx = [first_op, xx, t]
+            #xx = [first_op, xx, t]
+            xx.append(t)
     return xx
 
 
