@@ -28,6 +28,7 @@ if __name__ == '__main__':
     print = console.print
 
 
+
 def parse_tree(tokens):
     x = []
     stack = [x]
@@ -162,19 +163,28 @@ fn  main(argc, argv) -> int
     return (9 * 9)
 """
 
-def parse_file(filename):
+def parse_file(filename, syntax_fns=None):
     with open(filename) as f:
         s = f.read()
         ast = parse_string(s, filename)
         return ast
 
 
-def parse_string(s, filename):
+def parse_string(s, filename, syntax_fns=None):
+    if syntax_fns is None:
+        syntax_fns = default_syntax_functions
+
     tokens = tokenise(s, filename)
     tokens2 = convert_indent_to_brackets(tokens)
     ast = parse_tree(tokens2)
-    return ast
+    ast2 = mapbranch(lambda x: parse_syntax(x, syntax_fns), ast)
+    return ast2
 
+
+default_syntax_functions = {
+        'infix': parse_infix,
+        'neo-infix': parse_neo_infix,
+        }
 
 if __name__ == '__main__':
     if True:
@@ -197,14 +207,15 @@ if __name__ == '__main__':
         print(' '.join(str(t.value) for t in tokens2 if t.type != 'NEWLINE'))
 
     if True:
-        syntax_fns = {
-                'infix': parse_infix,
-                'neo-infix': parse_neo_infix,
-                }
         hline(title='# tree')
         ast = parse_tree(tokens2)
         for expr in ast:
-            x = mapbranch(lambda x: parse_syntax(x, syntax_fns), expr)
+            x = mapbranch(lambda x: parse_syntax(x, default_syntax_functions), expr)
             r = mapleaf(lambda x: x.value, x)
             print(r)
 
+    if True:
+        ast = parse_string(': (1 * 2 * 3)', '')
+        for expr in ast:
+            r = mapleaf(lambda x: x.value, expr)
+            print(r)
