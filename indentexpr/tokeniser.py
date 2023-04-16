@@ -33,7 +33,7 @@ class Token():
         return f"{self.type} {repr(self.value)}"
 
 
-def tokenize(code, filename):
+def tokenise(code, filename):
     code = code.strip()
 
     word_regex = r'[^ \t\n\"(){}[\],;]+'
@@ -181,7 +181,7 @@ if __name__ == '__main__':
         hline(title='# code')
         print(code)
 
-    tokens = list(tokenize(code, 'code'))
+    tokens = list(tokenise(code, 'code'))
     if True:
         hline(title='# tokens')
         for token in tokens:

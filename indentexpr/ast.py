@@ -12,7 +12,7 @@ from .utilities import (
 
 from .tokeniser import (
         Token,
-        tokenize,
+        tokenise,
         convert_indent_to_brackets,
         )
 
@@ -76,7 +76,7 @@ def parse_file(filename):
 
 
 def parse_string(s, filename):
-    tokens = tokenize(s, filename)
+    tokens = tokenise(s, filename)
     tokens2 = convert_indent_to_sexp(tokens)
     ast = parse_tree(tokens2)
     return ast
@@ -87,7 +87,7 @@ if __name__ == '__main__':
         hline(title='# code')
         print(code)
 
-    tokens = list(tokenize(code, 'code'))
+    tokens = list(tokenise(code, 'code'))
     if True:
         hline(title='# tokens')
         for token in tokens:
