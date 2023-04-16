@@ -30,3 +30,13 @@ pytok-errors:
 wpytok-errors:
 	watchexec -cr "make pytok-errors"
 
+
+all:
+	python -m indentexpr.tokeniser
+
+wall:
+	watchexec -cr "make all"
+
+install:
+	python -m pip install -e .
+
