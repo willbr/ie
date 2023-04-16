@@ -1,5 +1,6 @@
 from typing import NamedTuple
 from collections.abc import Iterable
+from dataclasses import dataclass
 import re
 
 from itertools import (
@@ -31,12 +32,17 @@ def peek(iterable):
     return zip(a, c)
 
 
-class Token(NamedTuple):
+
+@dataclass
+class Token():
     type: str
     value: str
     line: int
     column: int
     filename: str
+
+    def __str__(self):
+        return f"{self.type} {repr(self.value)}"
 
 
 def tokenize(code, filename):
@@ -189,8 +195,7 @@ if __name__ == '__main__':
     if True:
         hline(title='# tokens')
         for token in tokens:
-            #print(token)
-            print(token.type, repr(token.value))
+            print(str(token))
 
     tokens2 = list(convert_indent_to_sexp(tokens))
     if True:
