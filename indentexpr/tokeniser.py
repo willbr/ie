@@ -3,16 +3,13 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 import re
 
-from itertools import (
-    tee, islice, chain
-    )
-
 from .utilitise import (
         strip_newlines,
         split_on_newline,
         maptree,
         tree_values,
         hline,
+        peek,
         )
 
 if __name__ == '__main__':
@@ -24,13 +21,6 @@ if __name__ == '__main__':
     console = Console(markup=False)
     python_print = print
     print = console.print
-
-
-def peek(iterable):
-    a, b = tee(iterable)
-    c = chain(islice(b, 1, None), [None])
-    return zip(a, c)
-
 
 
 @dataclass
@@ -149,7 +139,7 @@ def tokenize(code, filename):
         yield Token(kind, value, line_num, column, filename)
 
 
-def convert_indent_to_sexp(tokens):
+def convert_indent_to_brackets(tokens):
     #breakpoint()
     depth = -1
 
@@ -182,7 +172,9 @@ def convert_indent_to_sexp(tokens):
 
 code = """
 sum 1 2 3
-sum 1 2, sum 3 4
+    :
+        sum 1 2
+        sum 3 4
 """
 
 
@@ -197,7 +189,7 @@ if __name__ == '__main__':
         for token in tokens:
             print(str(token))
 
-    tokens2 = list(convert_indent_to_sexp(tokens))
+    tokens2 = list(convert_indent_to_brackets(tokens))
     if True:
         hline(title='# sexp')
         if False:
