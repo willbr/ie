@@ -109,7 +109,7 @@ def tokenise(code, filename):
             prefix_table = {
                     '(' : 'neo-infix',
                     '{' : 'neo-brace',
-                    '[' : 'subscript',
+                    '[' : 'neo-bracket',
                     }
             neo_prefix = prefix_table[char]
             yield Token('WORD', neo_prefix, offset, column, filename)
@@ -119,6 +119,14 @@ def tokenise(code, filename):
         elif kind in ['LPAREN', 'LBRACE','LBRACKET']:
             stack.append(value)
             yield Token('LBRACKET', value, line_num, column, filename)
+            char = value[0]
+            syntax_table = {
+                    '(' : 'infix',
+                    '{' : 'brace',
+                    '[' : 'bracket',
+                    }
+            syntax = syntax_table[char]
+            yield Token('WORD', syntax, offset, column, filename)
             continue
         elif kind in ['RPAREN', 'RBRACE','RBRACKET']:
             pair_table = {
