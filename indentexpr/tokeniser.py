@@ -102,8 +102,8 @@ def tokenise(code, filename):
         elif kind == 'NEOTERIC':
             name = value[:-1]
             char = value[-1]
-            offset = line_num + len(value) - 1
-            yield Token('LBRACKET', char, offset, column, filename)
+            offset = column + len(value) - 1
+            yield Token('LBRACKET', char, line_num, offset, filename)
             stack.append(char)
 
             prefix_table = {
@@ -112,7 +112,7 @@ def tokenise(code, filename):
                     '[' : 'neo-bracket',
                     }
             neo_prefix = prefix_table[char]
-            yield Token('WORD', neo_prefix, offset, column, filename)
+            yield Token('WORD', neo_prefix, line_num, offset, filename)
 
             yield Token('WORD', name, line_num, column, filename)
             continue
@@ -126,7 +126,7 @@ def tokenise(code, filename):
                     '[' : 'bracket',
                     }
             syntax = syntax_table[char]
-            yield Token('WORD', syntax, offset, column, filename)
+            yield Token('WORD', syntax, line_num, column, filename)
             continue
         elif kind in ['RPAREN', 'RBRACE','RBRACKET']:
             pair_table = {
