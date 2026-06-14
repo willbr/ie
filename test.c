@@ -1,28 +1,21 @@
 /*
- * Golden-file test runner for the ie parser (parse.c).
+ * Golden-file test runner for the ie parser (parse.c). Cross-platform via nob.h.
  *
  *   out/test          parse each fixture's in.txt and diff it against out.txt
  *   out/test bless     regenerate out.txt from the current parser output
  *
- * Run from the repo root (paths below are relative). Driven by
- * `./build test` / `./build bless`.
+ * Run from the repo root. Driven by `./build test` / `./build bless`.
  *
  * Fixtures: tests/tokeniser/<group>/<name>/{in,out}.txt
  * A <name> beginning with "err-" is expected to be rejected (non-zero exit).
  */
-#define _POSIX_C_SOURCE 200809L
+#define NOB_IMPLEMENTATION
+#include "nob.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <dirent.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-
-#define PARSE "out/parse"
-#define TESTS "tests/tokeniser"
-#define BUF   (64 * 1024)
-#define MAXLINES 8192
+#define PARSE   "out/parse"
+#define TESTS   "tests/tokeniser"
+#define CAPTURE "out/.captured"
+#define DEVNULL "out/.stderr"
 
 int bless = 0;
 int pass = 0;
@@ -30,56 +23,22 @@ int fail = 0;
 int blessed = 0;
 
 
-/* strip trailing newlines so the compare ignores the final-newline question */
+/* drop trailing newlines so the compare ignores the final-newline question */
 void
-rstrip(char *s)
+rstrip(Nob_String_Builder *sb)
 {
-    size_t n = strlen(s);
-    while (n && (s[n - 1] == '\n' || s[n - 1] == '\r'))
-        s[--n] = '\0';
+    while (sb->count && (sb->items[sb->count - 1] == '\n' || sb->items[sb->count - 1] == '\r'))
+        sb->count -= 1;
 }
 
 
-int
-is_dir(const char *path)
+/* run the parser on in_path, capturing stdout to CAPTURE; true == exit 0 */
+bool
+run_parser(const char *in_path)
 {
-    struct stat st;
-    return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
-}
-
-
-/* read the whole file into buf; returns -1 if it can't be opened */
-int
-read_file(const char *path, char *buf, size_t cap)
-{
-    FILE *f = fopen(path, "r");
-    if (!f) {
-        buf[0] = '\0';
-        return -1;
-    }
-    size_t n = fread(buf, 1, cap - 1, f);
-    buf[n] = '\0';
-    fclose(f);
-    return (int)n;
-}
-
-
-/* run PARSE on in_path, capture stdout into buf, return its exit code */
-int
-run_parser(const char *in_path, char *buf, size_t cap)
-{
-    char cmd[1024];
-    snprintf(cmd, sizeof cmd, "%s '%s' 2>/dev/null", PARSE, in_path);
-
-    FILE *p = popen(cmd, "r");
-    if (!p) {
-        buf[0] = '\0';
-        return -1;
-    }
-    size_t n = fread(buf, 1, cap - 1, p);
-    buf[n] = '\0';
-    int status = pclose(p);
-    return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+    Nob_Cmd cmd = {0};
+    nob_cmd_append(&cmd, PARSE, in_path);
+    return nob_cmd_run(&cmd, .stdout_path = CAPTURE, .stderr_path = DEVNULL);
 }
 
 
@@ -87,13 +46,13 @@ run_parser(const char *in_path, char *buf, size_t cap)
 void
 print_diff(char *want, char *got)
 {
-    char *wl[MAXLINES], *gl[MAXLINES];
+    char *wl[8192], *gl[8192];
     int wn = 0, gn = 0;
     char *p;
 
-    for (p = strtok(want, "\n"); p && wn < MAXLINES; p = strtok(NULL, "\n"))
+    for (p = strtok(want, "\n"); p && wn < 8192; p = strtok(NULL, "\n"))
         wl[wn++] = p;
-    for (p = strtok(got, "\n"); p && gn < MAXLINES; p = strtok(NULL, "\n"))
+    for (p = strtok(got, "\n"); p && gn < 8192; p = strtok(NULL, "\n"))
         gl[gn++] = p;
 
     int max = wn > gn ? wn : gn;
@@ -111,108 +70,116 @@ print_diff(char *want, char *got)
 void
 run_test(const char *dir, const char *name)
 {
-    char in_path[1024], out_path[1024];
-    snprintf(in_path, sizeof in_path, "%s/in.txt", dir);
-    snprintf(out_path, sizeof out_path, "%s/out.txt", dir);
-
     const char *base = strrchr(name, '/');
     base = base ? base + 1 : name;
 
-    static char got[BUF], want[BUF];
+    const char *in_path = nob_temp_sprintf("%s/in.txt", dir);
+    const char *out_path = nob_temp_sprintf("%s/out.txt", dir);
 
     /* err-* fixtures are expected to be rejected; only meaningful in check mode */
     if (strncmp(base, "err-", 4) == 0) {
         if (bless)
             return;
-        int code = run_parser(in_path, got, sizeof got);
-        if (code != 0) {
-            pass++;
+        if (!run_parser(in_path)) {
+            pass += 1;
         } else {
-            fail++;
+            fail += 1;
             printf("FAIL %s — expected rejection, parser accepted it\n", name);
         }
         return;
     }
 
-    int code = run_parser(in_path, got, sizeof got);
-    if (code != 0) {
+    if (!run_parser(in_path)) {
         if (bless) {
             printf("skip (parser failed): %s\n", name);
             return;
         }
-        fail++;
+        fail += 1;
         printf("FAIL %s — parser exited non-zero\n", name);
         return;
     }
-    rstrip(got);
+
+    Nob_String_Builder got = {0};
+    if (!nob_read_entire_file(CAPTURE, &got)) {
+        fail += 1;
+        printf("FAIL %s — could not read captured output\n", name);
+        return;
+    }
+    rstrip(&got);
 
     if (bless) {
-        FILE *f = fopen(out_path, "w");
+        FILE *f = fopen(out_path, "wb");
         if (!f) {
             printf("error: cannot write %s\n", out_path);
-            return;
+        } else {
+            fwrite(got.items, 1, got.count, f);
+            fputc('\n', f);
+            fclose(f);
+            blessed += 1;
         }
-        fprintf(f, "%s\n", got);
-        fclose(f);
-        blessed++;
+        nob_sb_free(got);
         return;
     }
 
-    read_file(out_path, want, sizeof want);
-    rstrip(want);
+    Nob_String_Builder want = {0};
+    nob_read_entire_file(out_path, &want);   /* missing file -> empty -> mismatch */
+    rstrip(&want);
 
-    if (strcmp(got, want) == 0) {
-        pass++;
+    int eq = got.count == want.count && memcmp(got.items, want.items, got.count) == 0;
+    if (eq) {
+        pass += 1;
     } else {
-        fail++;
+        fail += 1;
         printf("FAIL %s\n", name);
-        print_diff(want, got);
+        nob_sb_append_null(&want);
+        nob_sb_append_null(&got);
+        print_diff(want.items, got.items);
     }
+
+    nob_sb_free(got);
+    nob_sb_free(want);
 }
 
 
 int
 main(int argc, char **argv)
 {
+    nob_minimal_log_level = NOB_WARNING;   /* don't echo every parser invocation */
+
     if (argc > 1 && strcmp(argv[1], "bless") == 0)
         bless = 1;
 
-    DIR *groups = opendir(TESTS);
-    if (!groups) {
-        fprintf(stderr, "cannot open %s (run from the repo root)\n", TESTS);
+    Nob_File_Paths groups = {0};
+    if (!nob_read_entire_dir(TESTS, &groups)) {
+        nob_log(NOB_ERROR, "cannot read %s (run from the repo root)", TESTS);
         return 1;
     }
 
-    struct dirent *g;
-    while ((g = readdir(groups))) {
-        if (g->d_name[0] == '.')
+    for (size_t i = 0; i < groups.count; i++) {
+        const char *g = groups.items[i];
+        if (g[0] == '.')
             continue;
 
-        char group_path[1024];
-        snprintf(group_path, sizeof group_path, "%s/%s", TESTS, g->d_name);
-        if (!is_dir(group_path))
+        const char *group_path = nob_temp_sprintf("%s/%s", TESTS, g);
+        if (nob_get_file_type(group_path) != NOB_FILE_DIRECTORY)
             continue;
 
-        DIR *cases = opendir(group_path);
-        if (!cases)
-            continue;
-
-        struct dirent *t;
-        while ((t = readdir(cases))) {
-            if (t->d_name[0] == '.')
+        Nob_File_Paths cases = {0};
+        nob_read_entire_dir(group_path, &cases);
+        for (size_t j = 0; j < cases.count; j++) {
+            const char *c = cases.items[j];
+            if (c[0] == '.')
                 continue;
 
-            char dir[1024], name[1024];
-            snprintf(dir, sizeof dir, "%s/%s", group_path, t->d_name);
-            if (!is_dir(dir))
+            const char *dir = nob_temp_sprintf("%s/%s", group_path, c);
+            if (nob_get_file_type(dir) != NOB_FILE_DIRECTORY)
                 continue;
-            snprintf(name, sizeof name, "%s/%s", g->d_name, t->d_name);
 
-            run_test(dir, name);
+            run_test(dir, nob_temp_sprintf("%s/%s", g, c));
         }
-        closedir(cases);
+        nob_da_free(cases);
     }
-    closedir(groups);
+    nob_da_free(groups);
 
     if (bless) {
         printf("blessed %d fixtures\n", blessed);

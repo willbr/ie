@@ -7,16 +7,19 @@ https://dwheeler.com/readable/alternative-s-expressions.html
 
 ## build
 
-No make. Bootstrap the build tool once, then drive everything through it:
+No make. The build system is `build.c` (cross-platform via the vendored
+`nob.h`). Bootstrap it once with any C compiler, then drive everything
+through it:
 
-    cc -o build build.c
-    ./build              # build out/parse and out/test
-    ./build run [file]   # run the parser on a file
-    ./build test         # run the golden-file tests
-    ./build bless        # regenerate test fixtures from current output
-    ./build clean        # remove build artifacts
+    cc -o build build.c      # or: gcc/clang -o build build.c  ·  Windows: cl build.c
+    ./build                  # build out/parse and out/test
+    ./build run [file]       # run the parser on a file
+    ./build test             # run the golden-file tests
+    ./build bless            # regenerate test fixtures from current output
+    ./build clean            # remove build artifacts
 
-`build.c` rebuilds itself when edited.
+`build.c` rebuilds itself when edited. Works on Linux, macOS, and Windows
+(MSVC, MinGW, or Clang).
 
 ## example
 

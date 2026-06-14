@@ -1,8 +1,8 @@
 /*
- * build.c — the build system for ie. No make required.
+ * build.c — the build system for ie. No make required. Cross-platform via nob.h.
  *
- * Bootstrap once:
- *     cc -o build build.c
+ * Bootstrap once (any C compiler):
+ *     cc -o build build.c          # or: gcc/clang -o build build.c, or: cl build.c
  *
  * Then:
  *     ./build              build out/parse and out/test
@@ -11,118 +11,73 @@
  *     ./build bless        regenerate the test fixtures from current output
  *     ./build clean        remove build artifacts
  *
- * Editing build.c is enough — it rebuilds itself before running.
+ * Editing build.c is enough — nob rebuilds it before running.
  */
-#define _POSIX_C_SOURCE 200809L
+#define NOB_IMPLEMENTATION
+#include "nob.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-
-#define CC      "cc"
-#define CFLAGS  "-std=c99 -Wall -Wextra"
+#define PARSE "out/parse"
+#define TEST  "out/test"
 #define DEFAULT_F "tests/tokeniser/c/c00-hello-world/in.txt"
 
 
-/* run a shell command, echo it, return its exit code */
-int
-run(const char *fmt, ...)
+bool
+compile(const char *output, const char *input)
 {
-    char cmd[4096];
-    va_list ap;
-    va_start(ap, fmt);
-    vsnprintf(cmd, sizeof cmd, fmt, ap);
-    va_end(ap);
-
-    printf("+ %s\n", cmd);
-    int rc = system(cmd);
-    if (rc == -1)
-        return -1;
-    return WIFEXITED(rc) ? WEXITSTATUS(rc) : -1;
+    if (!nob_mkdir_if_not_exists("out"))
+        return false;
+    Nob_Cmd cmd = {0};
+    nob_cc(&cmd);
+    nob_cc_flags(&cmd);
+    nob_cc_output(&cmd, output);
+    nob_cc_inputs(&cmd, input);
+    return nob_cmd_run(&cmd);
 }
 
 
 void
-die_if(int rc)
+rm(const char *path)
 {
-    if (rc != 0)
-        exit(rc);
-}
-
-
-/* if build.c is newer than the build binary, recompile and re-exec */
-void
-rebuild_self(char **argv)
-{
-    struct stat src, bin;
-    if (stat("build.c", &src) != 0 || stat("build", &bin) != 0)
-        return;
-    if (src.st_mtime <= bin.st_mtime)
-        return;
-
-    printf("+ build.c changed, rebuilding self\n");
-    unlink("build.old");
-    if (rename("build", "build.old") != 0) {
-        perror("rename");
-        exit(1);
-    }
-    if (run("%s -o build build.c", CC) != 0) {
-        rename("build.old", "build");
-        exit(1);
-    }
-    execv(argv[0], argv);
-    perror("execv");
-    exit(1);
-}
-
-
-void
-build_parse(void)
-{
-    mkdir("out", 0755);
-    die_if(run("%s %s -o out/parse parse.c", CC, CFLAGS));
-}
-
-
-void
-build_test(void)
-{
-    mkdir("out", 0755);
-    die_if(run("%s %s -o out/test test.c", CC, CFLAGS));
+    if (nob_file_exists(path) > 0)
+        nob_delete_file(path);
 }
 
 
 int
 main(int argc, char **argv)
 {
-    rebuild_self(argv);
+    NOB_GO_REBUILD_URSELF(argc, argv);
 
-    const char *cmd = argc > 1 ? argv[1] : "all";
+    const char *sub = argc > 1 ? argv[1] : "all";
 
-    if (strcmp(cmd, "all") == 0) {
-        build_parse();
-        build_test();
-    } else if (strcmp(cmd, "run") == 0) {
-        build_parse();
-        const char *f = argc > 2 ? argv[2] : DEFAULT_F;
-        return run("out/parse %s", f);
-    } else if (strcmp(cmd, "test") == 0) {
-        build_parse();
-        build_test();
-        return run("out/test");
-    } else if (strcmp(cmd, "bless") == 0) {
-        build_parse();
-        build_test();
-        return run("out/test bless");
-    } else if (strcmp(cmd, "clean") == 0) {
-        return run("rm -rf out build.old");
+    if (strcmp(sub, "all") == 0) {
+        if (!compile(PARSE, "parse.c")) return 1;
+        if (!compile(TEST, "test.c")) return 1;
+    } else if (strcmp(sub, "run") == 0) {
+        if (!compile(PARSE, "parse.c")) return 1;
+        Nob_Cmd cmd = {0};
+        nob_cmd_append(&cmd, PARSE, argc > 2 ? argv[2] : DEFAULT_F);
+        return nob_cmd_run(&cmd) ? 0 : 1;
+    } else if (strcmp(sub, "test") == 0) {
+        if (!compile(PARSE, "parse.c")) return 1;
+        if (!compile(TEST, "test.c")) return 1;
+        Nob_Cmd cmd = {0};
+        nob_cmd_append(&cmd, TEST);
+        return nob_cmd_run(&cmd) ? 0 : 1;
+    } else if (strcmp(sub, "bless") == 0) {
+        if (!compile(PARSE, "parse.c")) return 1;
+        if (!compile(TEST, "test.c")) return 1;
+        Nob_Cmd cmd = {0};
+        nob_cmd_append(&cmd, TEST, "bless");
+        return nob_cmd_run(&cmd) ? 0 : 1;
+    } else if (strcmp(sub, "clean") == 0) {
+        rm("out/parse");      rm("out/parse.exe");
+        rm("out/test");       rm("out/test.exe");
+        rm("out/.captured");  rm("out/.stderr");
+        rm("build.old");      rm("build.old.exe");
     } else {
-        fprintf(stderr, "unknown command: %s\n", cmd);
-        fprintf(stderr, "usage: ./build [all|run [file]|test|bless|clean]\n");
+        nob_log(NOB_ERROR, "unknown command: %s", sub);
+        nob_log(NOB_INFO, "usage: ./build [all|run [file]|test|bless|clean]");
         return 1;
     }
 
