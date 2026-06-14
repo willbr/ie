@@ -29,7 +29,6 @@
 #define debug_var(s,v) \
     fprintf(stderr, #v ": %" s "\n", v)
 
-typedef unsigned char u8;
 typedef unsigned int uint;
 typedef void (void_fn)(void);
 
@@ -55,9 +54,6 @@ char *token_breakchars = " ,()[]{}\n";
 
 int state_index = 0;
 void (*state_fns[16])(void);
-
-int cmds_index = 0;
-char cmds_buffer[16 * (256 + 1)] = "";
 
 int wrapped_index = 0;
 char *wrapped[64];
@@ -100,37 +96,6 @@ push_state(void (*fn)(void))
 
 
 void
-debug_line(void)
-{
-    int offset = 0;
-    char *c = line_buffer;
-    /*debug_var("zu", in);*/
-    /*debug_var("zu", c);*/
-    fprintf(stderr, "line:\n");
-    fprintf(stderr, "c: %c\n", *c);
-    for (;*c != '\0'; c += 1) {
-        if (in > c)
-            offset += 1;
-        switch (*c) {
-        case 32:
-            fprintf(stderr, ".");
-            break;
-        case 10:
-            if (in > c)
-                offset += 1;
-            fprintf(stderr, "\\n");
-            break;
-        default:
-            fprintf(stderr, "%c", *c);
-        }
-    }
-    fprintf(stderr, "\\0\n");
-
-    fprintf(stderr, "%*s^\n", offset, "");
-}
-
-
-void
 debug_stack(void)
 {
     int i = 0;
@@ -165,112 +130,6 @@ debug_stack(void)
         fprintf(stderr, "    %d, %s\n", i, fn);
     }
     fprintf(stderr, "\n");
-}
-
-
-void
-debug_token(void)
-{
-    fprintf(stderr, "tok: %zu, '%s'\n", strlen(token_buffer), token_buffer);
-}
-
-
-void
-debug_dump(void *v, int n)
-{
-    char *c = v;
-
-    fprintf(stderr, "dumping: %d bytes @ %p\n\n", n, v);
-
-    while (n > 0) {
-        ptrdiff_t offset = c - (char *)v;
-        int i = 4;
-        int line_length = n > 7 ? 8 : n % 8;
-
-        fprintf(stderr, "%.03zu ", offset);
-
-        for (i = 0; i < 8; i++) {
-            char *x = c + i;
-            char *gap = i % 2 ? " " : "";
-            if (i < line_length)
-                fprintf(stderr, "%02x%s", *x, gap);
-            else
-                fprintf(stderr, "  %s", gap);
-        }
-
-        fprintf(stderr, " ");
-
-        for (i = 0; i < 8; i++) {
-            char *x = c + i;
-            char xx = *x > 10 ? *x : '.';
-            if (i < line_length)
-                fprintf(stderr, "%c", xx);
-            else
-                fprintf(stderr, " ");
-        }
-
-        fprintf(stderr, "\n");
-
-        c += 8;
-        n -= 8;
-    }
-
-    fprintf(stderr, "\n");
-}
-
-
-char *
-alloc_cmd(char *s)
-{
-    char *rval = &cmds_buffer[cmds_index];
-    int len = strlen(s);
-    int max_size = sizeof(cmds_buffer) / sizeof(cmds_buffer[0]);
-    /*debug_var("d", max_size);*/
-
-    if (len > 255)
-        die("command string is too long: %d > 255", len);
-
-    /*debug_var("d", cmds_index);*/
-    cmds_index += len + 1;
-    /*debug_var("d", cmds_index);*/
-
-    if (cmds_index >= max_size)
-        die("cmds_buffer overflowed");
-
-    strncpy(rval, s, len+ 1);
-    cmds_buffer[cmds_index] = (u8)len;
-    cmds_index += 1;
-    /*debug_var("d", cmds_index);*/
-
-    /*debug_var("s", rval);*/
-    /*debug_dump(cmds_buffer, cmds_index);*/
-
-    /*debug_var("d", len);*/
-    return rval;
-}
-
-
-char *
-alloc_prefixed_cmd(char *prefix, char* s)
-{
-    static char prefixed[256] = "";
-    int prefix_len = strlen(prefix);
-    int s_len = strlen(s);
-    int total_len = prefix_len + s_len;
-
-    if (total_len > 255)
-        die("prefixed cmd is too long: %d > 255", total_len);
-
-    /*ere;*/
-    strncat(prefixed, prefix, 256);
-    /*debug_var("s", prefixed);*/
-    /*debug_dump(prefixed, 0x20);*/
-
-    strncat(prefixed, s, 256 - prefix_len);
-    /*debug_dump(prefixed, 0x20);*/
-    /*debug_var("s", prefixed);*/
-
-    return alloc_cmd(prefixed);
 }
 
 
@@ -625,48 +484,6 @@ prefix_head(void)
 
     strncpy(token_buffer, "[", 256);
     state_fns[state_index] = prefix_body;
-}
-
-
-void
-prefix_cmd(void)
-{
-    /*ere;*/
-    void_fn *prefix_fn = NULL;
-
-    if (*in == '\0' && read_line() == NULL) {
-        token_buffer[0] = '\0';
-        return;
-    }
-
-    if (*in == '\0')
-        die("null char")
-
-    if (*in == '\n')
-        die("newline")
-
-    if (*in == ' ')
-        die("space")
-
-    if ((prefix_fn = lookup_prefix(*in))) {
-        die("can you start a line with a prefix char?");
-        /*prefix_fn();*/
-        return;
-    }
-
-    read_token();
-    /*debug_token();*/
-
-    if (is_wrapped(token_buffer)) {
-        /*cmds[state_index] = alloc_prefixed_cmd("end-", token_buffer);*/
-        state_fns[state_index] = prefix_body;
-        return;
-    }
-
-
-    /*cmds[state_index] = alloc_cmd(token_buffer);*/
-    state_fns[state_index] = prefix_body;
-    prefix_body();
 }
 
 
