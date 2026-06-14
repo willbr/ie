@@ -1,42 +1,22 @@
+CC     := cc
+CFLAGS := -std=c99 -Wall -Wextra
+BUILD  := build
+PARSE  := $(BUILD)/parse
 
-ifeq ($(OS),Windows_NT)     # is Windows_NT on XP, 2000, 7, Vista, 10...
-    detected_OS := Windows
-	PATH := $(PATH);./bin/
-	mkdir = mkdir
-	make = make
-	rm = del
-	EXE = .exe
-	ignore := rem
-else
-    detected_OS := $(shell uname)  # same as "uname -s"
-	PATH := $(PATH):./bin/
-	mkdir = mkdir
-	make = make
-	rm = rm
-	EXE =
-	ignore := echo ignore
-endif
+f ?= src/tests/tokeniser/c/c00-hello-world/in.txt
 
-wwip:
-	watchexec -cr -f "*.py" "make wip"
+all: $(PARSE)
 
-wip:
-	python -m src.py
+$(PARSE): src/c/parse.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ $<
 
-pytok-errors: 
-	- python src/py/tokenise.py src/tests/tokeniser/tokens/err-00-comma/in.txt
-	- python src/py/tokenise.py src/tests/tokeniser/tokens/err-01-whitespace/in.txt
+$(BUILD):
+	mkdir -p $(BUILD)
 
-wpytok-errors:
-	watchexec -cr "make pytok-errors"
+run: $(PARSE)
+	$(PARSE) $(f)
 
+clean:
+	rm -rf $(BUILD)
 
-all:
-	python -m indentexpr.ast
-
-wall:
-	watchexec -cr "make all"
-
-install:
-	python -m pip install -e .
-
+.PHONY: all run clean
