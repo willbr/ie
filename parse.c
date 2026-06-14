@@ -17,11 +17,14 @@
                 __FILE__, __LINE__, __func__); \
     } while (0);
 
-#define die(msg, ...) \
+/* fully variadic so __VA_ARGS__ is never empty: avoids the GNU ,##__VA_ARGS__
+ * extension and stays portable across c99 / clang / MSVC. die() is always
+ * called with at least a (literal) format string. */
+#define die(...) \
     do { \
-        fprintf(stderr, \
-                CTEXT(RED_TEXT, "\nerror: " msg "\n"), \
-                ## __VA_ARGS__); \
+        fprintf(stderr, ESC "[" RED_TEXT "m" "\nerror: "); \
+        fprintf(stderr, __VA_ARGS__); \
+        fprintf(stderr, RESET "\n"); \
         ere; \
         exit(1); \
     } while (0);
