@@ -1,8 +1,12 @@
+[
 a
-ie/newline
-    
+newline
+[
 b
-ie/newline
-        
+newline
+[
 c
-ie/newline
+newline
+]
+]
+]

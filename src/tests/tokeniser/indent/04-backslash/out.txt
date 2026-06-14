@@ -1,6 +1,6 @@
+[
 double
-ie/newline
-    
-\
+newline
 1
-ie/newline
+newline
+]

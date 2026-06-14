@@ -16,7 +16,13 @@ $(BUILD):
 run: $(PARSE)
 	$(PARSE) $(f)
 
+test:
+	./test.sh
+
+bless:
+	./test.sh bless
+
 clean:
 	rm -rf $(BUILD)
 
-.PHONY: all run clean
+.PHONY: all run test bless clean

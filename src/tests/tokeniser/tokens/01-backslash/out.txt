@@ -1,7 +1,7 @@
+[
 +
 1
-ie/newline
-    
-\
+newline
 2
-ie/newline
+newline
+]

@@ -1,7 +1,12 @@
+[
 +
 1
 2
-ie/newline
+newline
+]
+[
 +
 3
 4
+newline
+]

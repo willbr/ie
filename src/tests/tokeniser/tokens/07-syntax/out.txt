@@ -1,6 +1,6 @@
+[
 +
 [
-ie/prefix
 *
 9
 9
@@ -17,4 +17,5 @@ ie/prefix
 4
 +
 }
-ie/newline
+newline
+]

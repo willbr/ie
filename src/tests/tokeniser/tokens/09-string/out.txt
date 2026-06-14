@@ -1,11 +1,13 @@
+[
 :
 puts
 .
-ie/newline
+newline
+]
 [
-ie/prefix
+[
 puts
 "hello dad"
 ]
-ie/newline
-ie/newline
+newline
+]

@@ -1,9 +1,8 @@
+[
 +
-ie/newline
-    
-\
+newline
 1
-ie/newline
-    
-\
+newline
 2
+newline
+]

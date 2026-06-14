@@ -1,6 +1,7 @@
+[
 a
 =
-ie/neoteric
+[
 sum
 (
 1
@@ -9,7 +10,10 @@ sum
 ,
 3
 )
-ie/newline
+]
+newline
+]
+[
 a
 =
 sum
@@ -20,3 +24,4 @@ sum
 ,
 3
 )
+]

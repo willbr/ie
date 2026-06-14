@@ -1,6 +1,10 @@
+[
 def
 main
-ie/newline
-    
+newline
+[
 printf
 "hello, world\n"
+newline
+]
+]
