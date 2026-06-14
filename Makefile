@@ -2,6 +2,7 @@ CC     := cc
 CFLAGS := -std=c99 -Wall -Wextra
 BUILD  := build
 PARSE  := $(BUILD)/parse
+TESTBIN := $(BUILD)/test
 
 f ?= src/tests/tokeniser/c/c00-hello-world/in.txt
 
@@ -16,11 +17,14 @@ $(BUILD):
 run: $(PARSE)
 	$(PARSE) $(f)
 
-test:
-	./test.sh
+$(TESTBIN): test.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ $<
 
-bless:
-	./test.sh bless
+test: $(PARSE) $(TESTBIN)
+	$(TESTBIN)
+
+bless: $(PARSE) $(TESTBIN)
+	$(TESTBIN) bless
 
 clean:
 	rm -rf $(BUILD)
