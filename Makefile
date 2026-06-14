@@ -4,11 +4,11 @@ BUILD  := build
 PARSE  := $(BUILD)/parse
 TESTBIN := $(BUILD)/test
 
-f ?= src/tests/tokeniser/c/c00-hello-world/in.txt
+f ?= tests/tokeniser/c/c00-hello-world/in.txt
 
 all: $(PARSE)
 
-$(PARSE): src/c/parse.c | $(BUILD)
+$(PARSE): parse.c | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $<
 
 $(BUILD):
