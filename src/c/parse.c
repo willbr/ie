@@ -1,6 +1,7 @@
 #include <stdio.h> /* puts, fopen, fprintf */
 #include <stdlib.h> /* exit */
 #include <string.h> /* strncmp */
+#include <stddef.h> /* ptrdiff_t */
 
 #define ESC "\x1b"
 #define RED_TEXT "31"
@@ -159,7 +160,7 @@ debug_stack(void)
 void
 debug_token(void)
 {
-    fprintf(stderr, "tok: %d, '%s'\n", strlen(token_buffer), token_buffer);
+    fprintf(stderr, "tok: %zu, '%s'\n", strlen(token_buffer), token_buffer);
 }
 
 
@@ -171,7 +172,7 @@ debug_dump(void *v, int n)
     fprintf(stderr, "dumping: %d bytes @ %p\n\n", n, v);
 
     while (n > 0) {
-        ptrdiff_t offset = c - v;
+        ptrdiff_t offset = c - (char *)v;
         int i = 4;
         int line_length = n > 7 ? 8 : n % 8;
 
@@ -821,7 +822,7 @@ next_word(void)
         /*ere;*/
         strncpy(token_buffer, next_token_buffer, 256);
         next_token_buffer[0] = '\0';
-        return;
+        return token_buffer;
     }
 
     if (state_index < 0) {
@@ -878,7 +879,6 @@ main(int argc, char **argv)
 
     init();
 
-    int limit = 0xff;
     while (next_word(), token_buffer[0] != '\0') {
         /*ere;*/
         /*debug_line();*/
@@ -895,12 +895,6 @@ main(int argc, char **argv)
                 fprintf(stderr, "    ");
 
         printf("%s\n", token_buffer);
-        if (!limit--) {
-            ere;
-            debug_var("d", *in);
-            debug_var("c", *in);
-            die("limit");
-        }
     }
 
     /*printf("\n");*/
