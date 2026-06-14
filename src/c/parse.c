@@ -89,6 +89,17 @@ LIST_OF_STATES
 
 
 void
+push_state(void (*fn)(void))
+{
+    int max_depth = sizeof(state_fns) / sizeof(state_fns[0]);
+    state_index += 1;
+    if (state_index >= max_depth)
+        die("nesting too deep: state stack overflow (max %d)", max_depth);
+    state_fns[state_index] = fn;
+}
+
+
+void
 debug_line(void)
 {
     int offset = 0;
@@ -192,7 +203,6 @@ debug_dump(void *v, int n)
         for (i = 0; i < 8; i++) {
             char *x = c + i;
             char xx = *x > 10 ? *x : '.';
-            char *gap = i % 2 ? " " : "";
             if (i < line_length)
                 fprintf(stderr, "%c", xx);
             else
@@ -444,8 +454,7 @@ is_neoteric(void)
         /*debug_stack();*/
         strncpy(next_token_buffer, token_buffer, 256);
         strncpy(token_buffer, "[", 256);
-        state_index += 1;
-        state_fns[state_index] = neoteric;
+        push_state(neoteric);
     }
 }
 
@@ -471,7 +480,7 @@ prefix_body(void)
         return;
     }
 
-    if (prefix_fn = lookup_prefix(*in)) {
+    if ((prefix_fn = lookup_prefix(*in))) {
         prefix_fn();
         return;
     }
@@ -544,8 +553,7 @@ prefix_indent(void)
     } else if (diff == 1) {
         cur_indent = new_indent;
         state_fns[state_index] = prefix_end;
-        state_index += 1;
-        state_fns[state_index] = prefix_head;
+        push_state(prefix_head);
         prefix_head();
         return;
     }
@@ -624,7 +632,6 @@ void
 prefix_cmd(void)
 {
     /*ere;*/
-    char *end  = NULL;
     void_fn *prefix_fn = NULL;
 
     if (*in == '\0' && read_line() == NULL) {
@@ -641,7 +648,7 @@ prefix_cmd(void)
     if (*in == ' ')
         die("space")
 
-    if (prefix_fn = lookup_prefix(*in)) {
+    if ((prefix_fn = lookup_prefix(*in))) {
         die("can you start a line with a prefix char?");
         /*prefix_fn();*/
         return;
@@ -670,8 +677,7 @@ inline_prefix(void)
     chomp(' ');
 
     strncpy(token_buffer, "[", 256);
-    state_index += 1;
-    state_fns[state_index] = inline_body;
+    push_state(inline_body);
 }
 
 
@@ -690,8 +696,6 @@ inline_prefix_end(void)
 void
 inline_infix(void)
 {
-    void_fn *prefix_fn = NULL;
-
     /*ere;*/
     /*debug_var("c", *in);*/
 
@@ -709,9 +713,7 @@ inline_infix(void)
     }
 
     strncpy(token_buffer, "(", 256);
-    state_index += 1;
-    /*cmds[state_index] = NULL;*/
-    state_fns[state_index] = inline_body;
+    push_state(inline_body);
     /*debug_stack();*/
     /*debug_token();*/
 }
@@ -736,9 +738,8 @@ inline_postfix(void)
 {
     in += 1;
     chomp(' ');
-    state_index += 1;
     strncpy(token_buffer, "{", 256);
-    state_fns[state_index] = inline_body;
+    push_state(inline_body);
 }
 
 
@@ -750,7 +751,7 @@ inline_body(void)
 
     /*debug_var("c", *in);*/
 
-    if (prefix_fn = lookup_prefix(*in)) {
+    if ((prefix_fn = lookup_prefix(*in))) {
         /*ere;*/
         prefix_fn();
         /*ere;*/
@@ -865,6 +866,8 @@ int
 main(int argc, char **argv)
 {
     char **arg = argv + 1;
+
+    (void)argc;
 
     if (!*arg)
         die("missing input filename");
