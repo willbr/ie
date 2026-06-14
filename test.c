@@ -1,11 +1,11 @@
 /*
  * Golden-file test runner for the ie parser (parse.c).
  *
- *   build/test          parse each fixture's in.txt and diff it against out.txt
- *   build/test bless     regenerate out.txt from the current parser output
+ *   out/test          parse each fixture's in.txt and diff it against out.txt
+ *   out/test bless     regenerate out.txt from the current parser output
  *
- * Run from the repo root (paths below are relative). Wired up as
- * `make test` / `make bless`.
+ * Run from the repo root (paths below are relative). Driven by
+ * `./build test` / `./build bless`.
  *
  * Fixtures: tests/tokeniser/<group>/<name>/{in,out}.txt
  * A <name> beginning with "err-" is expected to be rejected (non-zero exit).
@@ -19,7 +19,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
-#define PARSE "build/parse"
+#define PARSE "out/parse"
 #define TESTS "tests/tokeniser"
 #define BUF   (64 * 1024)
 #define MAXLINES 8192

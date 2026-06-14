@@ -5,6 +5,19 @@ Syntax = Lisp + Python
 I love:
 https://dwheeler.com/readable/alternative-s-expressions.html
 
+## build
+
+No make. Bootstrap the build tool once, then drive everything through it:
+
+    cc -o build build.c
+    ./build              # build out/parse and out/test
+    ./build run [file]   # run the parser on a file
+    ./build test         # run the golden-file tests
+    ./build bless        # regenerate test fixtures from current output
+    ./build clean        # remove build artifacts
+
+`build.c` rebuilds itself when edited.
+
 ## example
 
 from
