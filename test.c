@@ -1,5 +1,6 @@
 /*
- * Golden-file test runner for the ie parser (parse.c). Cross-platform via nob.h.
+ * Golden-file test runner for the ie parser. Cross-platform via nob.h.
+ * Links ie.h directly and tokenizes in-process (no subprocess).
  *
  *   out/test          parse each fixture's in.txt and diff it against out.txt
  *   out/test bless     regenerate out.txt from the current parser output
@@ -11,11 +12,10 @@
  */
 #define NOB_IMPLEMENTATION
 #include "nob.h"
+#define IE_IMPLEMENTATION
+#include "ie.h"
 
-#define PARSE   "out/parse"
-#define TESTS   "tests/tokeniser"
-#define CAPTURE "out/.captured"
-#define DEVNULL "out/.stderr"
+#define TESTS "tests/tokeniser"
 
 int bless = 0;
 int pass = 0;
@@ -32,13 +32,11 @@ rstrip(Nob_String_Builder *sb)
 }
 
 
-/* run the parser on in_path, capturing stdout to CAPTURE; true == exit 0 */
-bool
-run_parser(const char *in_path)
+/* ie token callback: append "token\n" to the caller's string builder */
+void
+collect(const char *token, void *user)
 {
-    Nob_Cmd cmd = {0};
-    nob_cmd_append(&cmd, PARSE, in_path);
-    return nob_cmd_run(&cmd, .stdout_path = CAPTURE, .stderr_path = DEVNULL);
+    nob_sb_appendf((Nob_String_Builder *)user, "%s\n", token);
 }
 
 
@@ -76,45 +74,43 @@ run_test(const char *dir, const char *name)
     const char *in_path = nob_temp_sprintf("%s/in.txt", dir);
     const char *out_path = nob_temp_sprintf("%s/out.txt", dir);
 
+    Nob_String_Builder got = {0};
+    int rc = ie_tokenize_path(in_path, collect, &got);
+
     /* err-* fixtures are expected to be rejected; only meaningful in check mode */
     if (strncmp(base, "err-", 4) == 0) {
+        if (!bless) {
+            if (rc != 0) {
+                pass += 1;
+            } else {
+                fail += 1;
+                printf("FAIL %s — expected rejection, parser accepted it\n", name);
+            }
+        }
+        nob_sb_free(got);
+        return;
+    }
+
+    if (rc != 0) {
         if (bless)
-            return;
-        if (!run_parser(in_path)) {
-            pass += 1;
-        } else {
-            fail += 1;
-            printf("FAIL %s — expected rejection, parser accepted it\n", name);
-        }
-        return;
-    }
-
-    if (!run_parser(in_path)) {
-        if (bless) {
             printf("skip (parser failed): %s\n", name);
-            return;
+        else {
+            fail += 1;
+            printf("FAIL %s — parser exited non-zero\n", name);
         }
-        fail += 1;
-        printf("FAIL %s — parser exited non-zero\n", name);
-        return;
-    }
-
-    Nob_String_Builder got = {0};
-    if (!nob_read_entire_file(CAPTURE, &got)) {
-        fail += 1;
-        printf("FAIL %s — could not read captured output\n", name);
+        nob_sb_free(got);
         return;
     }
     rstrip(&got);
 
     if (bless) {
-        FILE *f = fopen(out_path, "wb");
-        if (!f) {
+        FILE *fp = fopen(out_path, "wb");
+        if (!fp) {
             printf("error: cannot write %s\n", out_path);
         } else {
-            fwrite(got.items, 1, got.count, f);
-            fputc('\n', f);
-            fclose(f);
+            fwrite(got.items, 1, got.count, fp);
+            fputc('\n', fp);
+            fclose(fp);
             blessed += 1;
         }
         nob_sb_free(got);
@@ -144,7 +140,7 @@ run_test(const char *dir, const char *name)
 int
 main(int argc, char **argv)
 {
-    nob_minimal_log_level = NOB_WARNING;   /* don't echo every parser invocation */
+    nob_minimal_log_level = NOB_WARNING;   /* keep nob quiet during the run */
 
     if (argc > 1 && strcmp(argv[1], "bless") == 0)
         bless = 1;
