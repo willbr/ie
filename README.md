@@ -2,6 +2,11 @@
 
 Syntax = Lisp + Python
 
+`ie` is a *syntax*, not a language — like JSON or s-expressions. It maps
+indented text onto a flat token stream: indentation and brackets become
+explicit `[ ]`, and every token is printed one per line. What you do with
+those tokens afterwards is up to you.
+
 I love:
 https://dwheeler.com/readable/alternative-s-expressions.html
 
@@ -23,122 +28,50 @@ through it:
 
 ## example
 
-from
+`out/parse file.ie` reads a file and writes one token per line. Given
 
     puts "hi"
 
     define square(x)
         x * x
 
-    puts square(10)
+it emits (shown compactly here — the real output is one token per line):
 
-    puts "bye"
+    [puts "hi" newline]
+    [define [square ( x )] newline
+        [x * x newline]]
 
-
-to
-
-    ie/newline
-    [puts "hi" ie/newline]
-    ie/newline
-    [define [ie/neoteric square [ie/infix x]] ie/newline
-        [x * x ie/newline]]
-    ie/newline
-    [puts [ie/neoteric square [ie/infix 10]] ie/newline]
-    ie/newline
-    [puts "bye"]
-
-or without markers
-
-    [puts "hi"]
-    [define [ie/neoteric square [ie/infix x]]
-        [x * x]]
-    [puts [ie/neoteric square [ie/infix 10]]]
-    [puts "bye"]
-
+Indentation opens and closes `[ ]`, `newline` marks the end of a line, and a
+neoteric call `square(x)` becomes `[square ( x )]`. The bracket characters
+`(` `)` `[` `]` `{` `}` pass through as their own tokens. Indentation is
+spaces, 4 per level.
 
 ## reader
 
-    read first char
-    is it a breakchar char? " \t\n,;()[]{}'
-          space
-       \t tab is an error
-       \n newline
-        , comma
-        ; semicolon
-        ( infix
-        { rpn
-        [ prefix
+For each token, read the first char:
 
-    is it a prefix char?
-        " string
-        * deref
-        & address
-        ' quote
-        % binary
-        $ hexadecimal
+    breakchar? (ends the current word)
+        space
+        ,            comma
+        ( ) [ ] { }  brackets
+        newline
 
-    read word
-    try promote functions
-        - promote to number
-        - promote to number from hex
-        - promote to number from binary
+    " starts a string
 
+    otherwise, read a word up to the next breakchar
 
-## prefix chars
+Brackets group: `[ ]` prefix, `( )` infix, `{ }` rpn.
 
-pointer methods
+## roadmap
 
-    * deref
-    & addr
-    ' quote
-    ! not
+Designed but not implemented in `parse.c` yet:
 
-## add promotion stage TODO
+    prefix transforms   *deref  &addr  'quote  !not  %binary  $hex
+    number promotion    decimal / hex / binary
+    heredocs            puts <<end ... end
+    regex objects       /^haha$/
+    version pragma      version 0
+    source locations    file:row:col:token  in the output
 
-apply a list of transformations to a token
-
-    *something
-
-becomes:
-
-    deref something
-    [deref something]
-    deref(something)
-
-## include version numbers TODO
-
-    version 0
-
-## heredocs Done
-
-    puts <<end
-    hello,
-    How are you doing today?
-    bye!
-    end
-
-## regex TODO
-
-create a regex object
-
-    /^haha$/
-
-## stdout interface TODO
-
-one token per line
-
-    token
-
-or
-
-    file:row:col:token
-
-example
-
-    in.txt:1:1:def
-    in.txt:1:1:main
-    in.txt:1:1:ie/newline
-    in.txt:2:1:    
-    in.txt:2:5:puts
-    in.txt:2:10:"hello"
-
+The prefix transforms are meant to rewrite a token, e.g. `*something` becomes
+`deref something`.
