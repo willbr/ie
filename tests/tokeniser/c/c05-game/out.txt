@@ -2,6 +2,7 @@
 include-lib
 "stdio.h"
 newline
+newline
 ]
 [
 define
@@ -13,6 +14,7 @@ newline
 define
 false
 0
+newline
 newline
 ]
 [
@@ -26,6 +28,7 @@ typedef
 u32
 unsigned
 int
+newline
 newline
 ]
 [
@@ -50,6 +53,7 @@ newline
 [
 height
 f32
+newline
 newline
 ]
 ]
@@ -90,6 +94,7 @@ ball
 )
 ]
 newline
+newline
 ]
 ]
 [
@@ -111,6 +116,7 @@ game-is-running
 =
 true
 newline
+newline
 ]
 [
 while
@@ -123,11 +129,13 @@ newline
 [
 render
 newline
+newline
 ]
 ]
 [
 return
 0
+newline
 newline
 ]
 ]
@@ -159,6 +167,7 @@ step
 +=
 1
 newline
+newline
 ]
 ]
 [
@@ -170,6 +179,7 @@ printf
 "%*sX\n"
 ball.x
 ""
+newline
 newline
 ]
 ]

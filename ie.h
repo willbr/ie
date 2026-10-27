@@ -58,7 +58,6 @@ typedef void (void_fn)(void);
 
 static jmp_buf ie__err;
 
-static int echo_newlines = 1;
 static int cur_indent = 0;
 static int new_indent = 0;
 static uint indent_width = 4;
@@ -256,26 +255,31 @@ peek_token(void)
 }
 
 
-void
+/* Read the next line's indent into new_indent. Returns 1 if the line was
+ * blank (empty or only spaces) and has been consumed: the caller emits its
+ * newline token and calls again. At EOF new_indent is 0. */
+int
 parse_indent(void)
 {
     char *first_char = NULL;
     uint diff = 0;
 
-    /* skip blank lines, including ones that are only spaces */
     for (;;) {
         if (*in == '\0' && read_line() == NULL) {
             new_indent = 0;
-            return;
+            return 0;
         }
 
         first_char = in;
         chomp(' ');
 
-        if (*in == '\n')
+        if (*in == '\n') {
             in += 1;
-        else if (*in != '\0')
+            return 1;
+        }
+        if (*in != '\0')
             break;
+        /* spaces then EOF with no newline: no newline token */
     }
 
     diff = in - first_char;
@@ -283,7 +287,7 @@ parse_indent(void)
         die("indent must be a multiple of %u spaces", indent_width);
 
     new_indent = diff / indent_width;
-    return;
+    return 0;
 }
 
 
@@ -363,10 +367,7 @@ prefix_newline(void)
 
     state_fns[state_index] = prefix_indent;
 
-    if (echo_newlines)
-        strncpy(token_buffer, "newline", 256);
-    else
-        prefix_indent();
+    strncpy(token_buffer, "newline", 256);
 
     return;
 }
@@ -375,7 +376,11 @@ prefix_newline(void)
 void
 prefix_indent(void)
 {
-    parse_indent();
+    if (parse_indent()) {
+        strncpy(token_buffer, "newline", 256);
+        return;
+    }
+
     int diff = new_indent - cur_indent;
 
     peek_token();
@@ -585,7 +590,8 @@ ie_tokenize(FILE *input, Ie_Token_Fn on_token, void *user)
     f = input;
     ie__reset();
 
-    parse_indent();   /* skip leading blank lines */
+    while (parse_indent())   /* leading blank lines */
+        on_token("newline", user);
     if (new_indent != 0)
         die("first line must not be indented");
 

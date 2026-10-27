@@ -10,4 +10,6 @@ puts
 "hello dad"
 ]
 newline
+newline
+newline
 ]

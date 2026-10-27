@@ -10,5 +10,6 @@ double
 )
 ]
 newline
+newline
 ]
 ]

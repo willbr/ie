@@ -2,6 +2,7 @@
 include-lib
 "stdio.h"
 newline
+newline
 ]
 [
 def
@@ -55,6 +56,7 @@ newline
 [
 return
 a
+newline
 newline
 ]
 ]

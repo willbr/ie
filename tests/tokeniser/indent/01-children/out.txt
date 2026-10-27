@@ -8,5 +8,6 @@ newline
 [
 c
 newline
+newline
 ]
 ]

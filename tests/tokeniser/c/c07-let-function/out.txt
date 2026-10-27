@@ -27,6 +27,8 @@ newline
 return
 a
 newline
+newline
+newline
 ]
 ]
 [
@@ -45,6 +47,7 @@ return
 n
 *
 2
+newline
 newline
 ]
 ]

@@ -1,6 +1,8 @@
+newline
 [
 include-lib
 "stdio.h"
+newline
 newline
 ]
 [
@@ -25,6 +27,7 @@ newline
 [
 return
 0
+newline
 newline
 ]
 ]

@@ -1,8 +1,12 @@
+newline
+newline
 [
 a
 newline
 [
 b
+newline
+newline
 newline
 ]
 [

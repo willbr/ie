@@ -6,11 +6,13 @@ newline
 *
 2
 newline
+newline
 ]
 ]
 [
 double
 newline
 5
+newline
 newline
 ]

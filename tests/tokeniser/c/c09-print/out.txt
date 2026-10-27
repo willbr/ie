@@ -2,6 +2,7 @@
 include-lib
 "stdio.h"
 newline
+newline
 ]
 [
 def
@@ -25,6 +26,7 @@ newline
 [
 println
 "goodbye = {:goodbye d}"
+newline
 newline
 ]
 ]

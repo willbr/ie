@@ -2,6 +2,7 @@
 include-lib
 "stdio.h"
 newline
+newline
 ]
 [
 def
@@ -26,6 +27,7 @@ newline
 [
 println
 "{poop =d}"
+newline
 newline
 ]
 ]

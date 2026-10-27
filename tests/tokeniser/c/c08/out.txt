@@ -2,6 +2,7 @@
 import
 stdio
 newline
+newline
 ]
 [
 def
@@ -24,6 +25,8 @@ newline
 ]
 [
 getchar
+newline
+newline
 newline
 ]
 ]

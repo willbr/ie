@@ -65,7 +65,11 @@ Brackets group: `[ ]` prefix, `( )` infix, `{ }` rpn.
 
 A bracket must close on the line it opened, and must close with its own
 kind: `f(a` at end of line and `[a)` are errors. Use `\` to continue a
-line. Blank lines, including ones that are only spaces, are skipped.
+line.
+
+Every newline in the source produces a `newline` token. A blank line
+(empty, or only spaces) emits its `newline` where it is read: inside the
+expression above it, or bare at top level before the first line.
 
 ## roadmap
 

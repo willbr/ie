@@ -2,6 +2,7 @@
 include-lib
 "stdio.h"
 newline
+newline
 ]
 [
 func-decl
@@ -12,6 +13,7 @@ void
 )
 ]
 int
+newline
 newline
 ]
 [
@@ -47,6 +49,7 @@ getchar
 (
 )
 ]
+newline
 newline
 ]
 ]
