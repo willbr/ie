@@ -37,17 +37,7 @@ int ie_tokenize_path(const char *path, Ie_Token_Fn on_token, void *user);
 
 #define ESC "\x1b"
 #define RED_TEXT "31"
-#define YELLOW_TEXT "33"
 #define RESET ESC "[0m"
-
-#define CTEXT(c, s) ESC "[" c "m" s RESET
-
-#define ere \
-    do { \
-        fprintf(stderr, \
-                CTEXT(YELLOW_TEXT, "\n%s : %d : %s\n"), \
-                __FILE__, __LINE__, __func__); \
-    } while (0);
 
 /* fully variadic so __VA_ARGS__ is never empty: avoids the GNU ,##__VA_ARGS__
  * extension and stays portable across c99 / clang / MSVC. die() is always
@@ -57,7 +47,6 @@ int ie_tokenize_path(const char *path, Ie_Token_Fn on_token, void *user);
         fprintf(stderr, ESC "[" RED_TEXT "m" "\nerror: "); \
         fprintf(stderr, __VA_ARGS__); \
         fprintf(stderr, RESET "\n"); \
-        ere; \
         longjmp(ie__err, 1); \
     } while (0);
 
@@ -90,9 +79,6 @@ static char *token_breakchars = " ,()[]{}\n";
 
 static int state_index = 0;
 static void (*state_fns[16])(void);
-
-static int wrapped_index = 0;
-static char *wrapped[64];
 
 void_fn * lookup_prefix(char c);
 
@@ -137,13 +123,7 @@ debug_stack(void)
     int i = 0;
 
     if (state_index < 0)
-        die("cmd stack underflow");
-
-    /*fprintf(stderr, "%s", line_buffer);*/
-    /*debug_var("p", in);*/
-    /*debug_var("zu", in - line_buffer);*/
-    /*debug_var("s", line_buffer);*/
-    /*debug_var("s", token_buffer);*/
+        die("state stack underflow");
 
 
     fprintf(stderr, "\nstack:\n");
@@ -160,7 +140,7 @@ debug_stack(void)
         LIST_OF_STATES
         } else {
             debug_var("p", state_fns[i]);
-            die("other");
+            die("unknown state function");
         }
 #undef X
         fprintf(stderr, "    %d, %s\n", i, fn);
@@ -180,13 +160,10 @@ chomp(char c)
 char *
 read_line(void)
 {
-    /*ere;*/
     char *r = fgets(line_buffer, 256, f);
     if (r == NULL)
         line_buffer[0] = '\0';
     in = &line_buffer[0];
-    /*ere;*/
-    /*fprintf(stderr, "line:\n%s\n", line_buffer);*/
     return r;
 }
 
@@ -208,10 +185,9 @@ read_token(void)
 
     tok_len = in - tok;
 
-    /*ere;*/
     if (tok_len == 0) {
         if (*in == ' ')
-            die("what?");
+            die("unexpected space (brackets cannot span lines)");
         in += 1;
         tok_len = 1;
     }
@@ -233,8 +209,6 @@ read_string(void)
     char *tok;
     int tok_len = 0;
 
-    /*ere;*/
-    /*debug_var("d", *in);*/
 
     if (*in == '\0')
         if (!read_line())
@@ -248,14 +222,14 @@ read_string(void)
         if (*in == '\\') {
             in += 1;
             if (*in == '\n' || *in == '\0')
-                die("invalid char:%d, '%c'", *in, *in);
+                die("unterminated string: \\ at end of line");
         } else {
             in += 1;
         }
     }
 
     if (*in != '"')
-        die("invalid char:%d, '%c'", *in, *in);
+        die("unterminated string");
 
     in += 1;
 
@@ -269,9 +243,6 @@ read_string(void)
     } else {
         token_buffer[0] = '\0';
     }
-
-    /*ere;*/
-    /*debug_token();*/
 }
 
 
@@ -287,7 +258,6 @@ peek_token(void)
 void
 parse_indent(void)
 {
-    /*ere;*/
     char *first_char = NULL;
     uint diff = 0;
 
@@ -304,10 +274,8 @@ parse_indent(void)
     chomp(' ');
 
     diff = in - first_char;
-    /*ere;*/
-    /*debug_var("d", diff);*/
     if (diff % indent_width != 0)
-        die("invalid indent");
+        die("indent must be a multiple of %u spaces", indent_width);
 
     new_indent = diff / indent_width;
     return;
@@ -325,7 +293,6 @@ neoteric(void)
 void
 neoteric_end(void)
 {
-    /*ere;*/
     strncpy(token_buffer, "]", 256);
     state_index -= 1;
 }
@@ -334,19 +301,9 @@ neoteric_end(void)
 void
 is_neoteric(void)
 {
-    /*ere;*/
-    /*debug_var("s", line_buffer);*/
-    /*debug_var("d", in > line_buffer);*/
-    /*debug_var("p", in);*/
-    /*debug_var("d", *in);*/
-    /*debug_var("d", strchr("([{", *in));*/
     if (*in != '\0' &&
         strchr("([{", *in) &&
         *(in - 1) != ' ') {
-        /*ere;*/
-        /*debug_var("c", *in);*/
-        /*debug_token();*/
-        /*debug_stack();*/
         strncpy(next_token_buffer, token_buffer, 256);
         strncpy(token_buffer, "[", 256);
         push_state(neoteric);
@@ -356,7 +313,6 @@ is_neoteric(void)
 void
 prefix_body(void)
 {
-    /*ere;*/
     void (*prefix_fn)(void) = NULL;
 
     if (*in == '\0') {
@@ -367,7 +323,7 @@ prefix_body(void)
     }
 
     if (*in == ' ')
-        die("space")
+        die("unexpected space")
 
     if (*in == '\n') {
         state_fns[state_index] = prefix_newline;
@@ -394,11 +350,9 @@ prefix_newline(void)
     }
 
     if (*in != '\n') {
-        /*debug_var("d", *in);*/
-        die("opps");
+        die("internal error: bad indent state");
     }
 
-    /*ere;*/
     in += 1;
 
     state_fns[state_index] = prefix_indent;
@@ -415,20 +369,14 @@ prefix_newline(void)
 void
 prefix_indent(void)
 {
-    /*ere;*/
-    /*debug_var("d", cur_indent);*/
-
     parse_indent();
     int diff = new_indent - cur_indent;
-    /*ere;*/
-    /*debug_var("d", new_indent);*/
-    /*debug_var("d", diff);*/
 
     peek_token();
 
     if (!strcmp("\\", token_buffer)) {
         if (diff > 1) {
-            die(">1");
+            die("indented more than one level");
         } else if (diff == 1) {
             new_indent = cur_indent;
             read_token();
@@ -436,15 +384,14 @@ prefix_indent(void)
             prefix_body();
             return;
         } else if (diff == 0) {
-            die("0");
+            die("line continuation \\ must be indented one level");
         } else {
-            debug_var("d", diff);
-            die("?");
+            die("line continuation \\ must be indented one level");
         }
     }
 
     if (diff > 1) {
-        die(">1");
+        die("indented more than one level");
     } else if (diff == 1) {
         cur_indent = new_indent;
         state_fns[state_index] = prefix_end;
@@ -455,18 +402,12 @@ prefix_indent(void)
 
     state_fns[state_index] = prefix_end;
     prefix_end();
-
 }
 
 
 void
 prefix_end(void)
 {
-    /*ere;*/
-    /*debug_var("d", cur_indent);*/
-    /*debug_var("d", new_indent);*/
-    /*debug_stack();*/
-
     strncpy(token_buffer, "]", 256);
 
     if (new_indent == cur_indent) {
@@ -475,38 +416,19 @@ prefix_end(void)
         cur_indent  -= 1;
         state_index -= 1;
     } else {
-        die("opps");
+        die("internal error: bad indent state");
     }
 
     return;
 }
 
 
-int
-is_wrapped(char *s)
-{
-    int i;
-
-    for (i = 0; i < wrapped_index; i += 1)
-        if (!strncmp(wrapped[i], s, 256))
-            return -1;
-
-    return 0;
-}
-
-
 void
 prefix_head(void)
 {
-    /*ere;*/
-    /*debug_var("d", *in);*/
     peek_token();
 
     if (*in == '\0') {
-        /*ere;*/
-        /*debug_var("d", cur_indent);*/
-        /*debug_var("d", new_indent);*/
-
         if(cur_indent) {
             new_indent = 0;
             state_fns[state_index] = prefix_end;
@@ -549,35 +471,17 @@ inline_prefix_end(void)
 void
 inline_infix(void)
 {
-    /*ere;*/
-    /*debug_var("c", *in);*/
-
     in += 1;
     chomp(' ');
 
-    /*debug_var("c", *in);*/
-
-    /*ere;*/
-    /*read_token();*/
-    /*debug_token();*/
-
-    if (is_wrapped(token_buffer)) {
-        die("wrapped");
-    }
-
     strncpy(token_buffer, "(", 256);
     push_state(inline_body);
-    /*debug_stack();*/
-    /*debug_token();*/
 }
 
 
 void
 inline_infix_end(void)
 {
-    /*ere;*/
-    /*debug_stack();*/
-
     in += 1;
     chomp(' ');
 
@@ -599,15 +503,11 @@ inline_postfix(void)
 void
 inline_body(void)
 {
-    /*ere;*/
     void_fn *prefix_fn = NULL;
 
-    /*debug_var("c", *in);*/
 
     if ((prefix_fn = lookup_prefix(*in))) {
-        /*ere;*/
         prefix_fn();
-        /*ere;*/
         return;
     }
 
@@ -623,19 +523,6 @@ inline_postfix_end(void)
     chomp(' ');
     state_index -= 1;
     strncpy(token_buffer, "}", 256);
-}
-
-
-void
-define_wrap(char *s)
-{
-    int max_size = sizeof(wrapped) / sizeof(wrapped[0]);
-
-    if (wrapped_index >= max_size)
-        die("wrapped overflow");
-
-    wrapped[wrapped_index] = s;
-    wrapped_index += 1;
 }
 
 
@@ -669,22 +556,17 @@ next_word(void)
 {
     void_fn *fn;
 
-    /*ere;*/
-    /*debug_stack();*/
 
     if (next_token_buffer[0] != '\0') {
-        /*ere;*/
         strncpy(token_buffer, next_token_buffer, 256);
         next_token_buffer[0] = '\0';
         return token_buffer;
     }
 
     if (state_index < 0) {
-        /*ere;*/
         debug_stack();
         die("state underflow");
     }
-    /*ere;*/
 
     if ((fn = state_fns[state_index]) == NULL)
         die("fn is NULL");
@@ -712,10 +594,6 @@ ie__reset(void)
     define_prefix('{', inline_postfix);
     define_prefix('}', inline_postfix_end);
     define_prefix('"', read_string);
-
-    wrapped_index = 0;
-    memset(wrapped, 0, sizeof(wrapped));
-    define_wrap(":");
 
     in = line_buffer;
     state_index = 0;
@@ -767,10 +645,7 @@ ie_tokenize_path(const char *path, Ie_Token_Fn on_token, void *user)
 
 #undef ESC
 #undef RED_TEXT
-#undef YELLOW_TEXT
 #undef RESET
-#undef CTEXT
-#undef ere
 #undef die
 #undef debug_var
 #undef LIST_OF_STATES

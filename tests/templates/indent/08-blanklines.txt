@@ -1,5 +1,0 @@
-def main
-
-    println "%d + %d"
-
-        1 + 2
