@@ -31,7 +31,6 @@ int ie_tokenize_path(const char *path, Ie_Token_Fn on_token, void *user);
 
 #ifdef IE_IMPLEMENTATION
 
-#include <stdlib.h>
 #include <string.h>
 #include <setjmp.h>
 
@@ -48,59 +47,78 @@ int ie_tokenize_path(const char *path, Ie_Token_Fn on_token, void *user);
         fprintf(stderr, __VA_ARGS__); \
         fprintf(stderr, RESET "\n"); \
         longjmp(ie__err, 1); \
-    } while (0);
+    } while (0)
 
-#define debug_var(s,v) \
-    fprintf(stderr, #v ": %" s "\n", v)
+#define INDENT 4
 
-typedef unsigned int uint;
-typedef void (void_fn)(void);
-
+/*
+ * The tokenizer is a state machine with an explicit stack. Each call to the
+ * state on top of the stack emits exactly one token into token_buffer (an
+ * empty token ends the stream). Indentation pushes prefix_* states, brackets
+ * push inline_body, and a word directly followed by a bracket ("f(x)") pushes
+ * neoteric, which wraps the call in [ ].
+ */
 static jmp_buf ie__err;
+static FILE *f;
 
-static int cur_indent = 0;
-static int new_indent = 0;
-static uint indent_width = 4;
+static char line_buffer[256];
+static char *in;                   /* read position in line_buffer */
 
-static char *in = NULL;
-static char line_buffer[256] = "";
+static char token_buffer[256];
+static char next_token_buffer[256];   /* a word held back by neoteric */
 
-static char token_buffer[256] = "";
-static char next_token_buffer[256] = "";
+static int cur_indent;
+static int new_indent;
 
-static FILE *f = NULL;
-
-static int prefix_index = 0;
-static char prefix_chars[64] = "";
-static void (*prefix_fns[64])(void);
-
-static char *token_breakchars = " ,()[]{}\n";
-
-static int state_index = 0;
 static void (*state_fns[16])(void);
-static char state_close[16];   /* closer expected by an inline_body state */
+static char state_close[16];       /* closer expected by an inline_body state */
+static int state_index;
 
-void_fn * lookup_prefix(char c);
+static const char breakchars[] = " ,()[]{}\n";
 
-char* next_word(void);
-
-#define LIST_OF_STATES \
-    X(prefix_head) \
-    X(prefix_body) \
-    X(prefix_newline) \
-    X(prefix_indent) \
-    X(prefix_end) \
-    X(inline_body) \
-    X(neoteric) \
-    X(neoteric_end)
-
-#define X(s) \
-    void s(void);
-LIST_OF_STATES
-#undef X
+static void prefix_head(void);
+static void prefix_body(void);
+static void prefix_indent(void);
+static void prefix_end(void);
+static void inline_body(void);
+static void neoteric(void);
+static void neoteric_end(void);
 
 
-void
+static void
+emit(const char *s)
+{
+    strcpy(token_buffer, s);
+}
+
+
+static void
+chomp(char c)
+{
+    while (*in == c)
+        in += 1;
+}
+
+
+/* the token is tok..in: copy it out and skip the spaces after it */
+static void
+take(const char *tok)
+{
+    size_t n = in - tok;
+    memcpy(token_buffer, tok, n);
+    token_buffer[n] = '\0';
+    chomp(' ');
+}
+
+
+static void
+set_state(void (*fn)(void))
+{
+    state_fns[state_index] = fn;
+}
+
+
+static void
 push_state(void (*fn)(void))
 {
     int max_depth = sizeof(state_fns) / sizeof(state_fns[0]);
@@ -111,161 +129,30 @@ push_state(void (*fn)(void))
 }
 
 
-void
-debug_stack(void)
-{
-    int i = 0;
-
-    if (state_index < 0)
-        die("state stack underflow");
-
-
-    fprintf(stderr, "\nstack:\n");
-    for (i = 0; i <= state_index; i += 1) {
-        char *fn = NULL;
-
-        if (state_fns[i] == NULL) {
-            fn = "(null)";
-
-#define X(s) \
-    } else if (state_fns[i] == s) { \
-        fn = #s;
-
-        LIST_OF_STATES
-        } else {
-            debug_var("p", state_fns[i]);
-            die("unknown state function");
-        }
-#undef X
-        fprintf(stderr, "    %d, %s\n", i, fn);
-    }
-    fprintf(stderr, "\n");
-}
-
-
-void
-chomp(char c)
-{
-    while (*in == c)
-        in += 1;
-}
-
-
-char *
+static int
 read_line(void)
 {
-    char *r = fgets(line_buffer, sizeof(line_buffer), f);
-    if (r == NULL)
+    in = line_buffer;
+    if (fgets(line_buffer, sizeof(line_buffer), f) == NULL) {
         line_buffer[0] = '\0';
-    else if (!strchr(line_buffer, '\n') && getc(f) != EOF)
+        return 0;
+    }
+    if (!strchr(line_buffer, '\n') && getc(f) != EOF)
         die("line too long (max %d chars)", (int)sizeof(line_buffer) - 2);
-    in = &line_buffer[0];
-    return r;
-}
-
-
-void
-read_token(void)
-{
-    char *tok;
-    int tok_len = 0;
-
-    if (*in == '\0')
-        if (!read_line()) {
-            token_buffer[0] = '\0';   /* EOF: end the token stream */
-            return;
-        }
-
-    tok = in;
-
-    while (!strchr(token_breakchars, *in))
-        in += 1;
-
-    tok_len = in - tok;
-
-    if (tok_len == 0) {
-        if (*in == ' ')
-            die("unexpected space (brackets cannot span lines)");
-        in += 1;
-        tok_len = 1;
-    }
-
-    chomp(' ');
-
-    if (tok_len) {
-        strncpy(token_buffer, tok, tok_len);
-        token_buffer[tok_len] = '\0';
-    } else {
-        token_buffer[0] = '\0';
-    }
-}
-
-
-void
-read_string(void)
-{
-    char *tok;
-    int tok_len = 0;
-
-
-    if (*in == '\0')
-        if (!read_line()) {
-            token_buffer[0] = '\0';   /* EOF: end the token stream */
-            return;
-        }
-
-    tok = in;
-
-    in += 1;
-
-    while (*in != '"' && *in != '\n' && *in != '\0') {
-        if (*in == '\\') {
-            in += 1;
-            if (*in == '\n' || *in == '\0')
-                die("unterminated string: \\ at end of line");
-        } else {
-            in += 1;
-        }
-    }
-
-    if (*in != '"')
-        die("unterminated string");
-
-    in += 1;
-
-    tok_len = in - tok;
-
-    chomp(' ');
-
-    if (tok_len) {
-        strncpy(token_buffer, tok, tok_len);
-        token_buffer[tok_len] = '\0';
-    } else {
-        token_buffer[0] = '\0';
-    }
-}
-
-
-void
-peek_token(void)
-{
-    char *old = in;
-    read_token();
-    in = old;
+    return 1;
 }
 
 
 /* Read the next line's indent into new_indent. Returns 1 if the line was
  * blank (empty or only spaces) and has been consumed: the caller emits its
  * newline token and calls again. At EOF new_indent is 0. */
-int
+static int
 parse_indent(void)
 {
-    char *first_char = NULL;
-    uint diff = 0;
+    char *first_char;
 
     for (;;) {
-        if (*in == '\0' && read_line() == NULL) {
+        if (*in == '\0' && !read_line()) {
             new_indent = 0;
             return 0;
         }
@@ -282,302 +169,213 @@ parse_indent(void)
         /* spaces then EOF with no newline: no newline token */
     }
 
-    diff = in - first_char;
-    if (diff % indent_width != 0)
-        die("indent must be a multiple of %u spaces", indent_width);
+    if ((in - first_char) % INDENT != 0)
+        die("indent must be a multiple of %d spaces", INDENT);
 
-    new_indent = diff / indent_width;
+    new_indent = (in - first_char) / INDENT;
     return 0;
 }
 
 
-void
-neoteric(void)
+static void
+read_string(void)
 {
-    state_fns[state_index] = neoteric_end;
-    inline_body();
+    const char *tok = in;
+
+    in += 1;
+    while (*in != '"' && *in != '\n' && *in != '\0') {
+        if (*in == '\\' && (in[1] == '\n' || in[1] == '\0'))
+            die("unterminated string: \\ at end of line");
+        in += 1;
+    }
+
+    if (*in != '"')
+        die("unterminated string");
+
+    in += 1;
+    take(tok);
 }
 
 
-void
-neoteric_end(void)
+static void
+read_word(void)
 {
-    strncpy(token_buffer, "]", 256);
-    state_index -= 1;
-}
+    const char *tok = in;
 
+    while (!strchr(breakchars, *in))
+        in += 1;
+    if (in == tok)
+        in += 1;   /* a lone breakchar, e.g. "," */
+    take(tok);
 
-void
-is_neoteric(void)
-{
-    if (*in != '\0' &&
-        strchr("([{", *in) &&
-        *(in - 1) != ' ') {
-        strncpy(next_token_buffer, token_buffer, 256);
-        strncpy(token_buffer, "[", 256);
+    /* "f(" with no space: emit [ now, the word next, and wrap the call */
+    if (*in != '\0' && strchr("([{", *in) && in[-1] != ' ') {
+        strcpy(next_token_buffer, token_buffer);
+        emit("[");
         push_state(neoteric);
     }
 }
 
-void
-prefix_body(void)
-{
-    void (*prefix_fn)(void) = NULL;
 
-    if (*in == '\0') {
-        /* EOF: unwind every open indent level */
-        new_indent = 0;
-        state_fns[state_index] = prefix_end;
-        prefix_end();
-        return;
-    }
-
-    if (*in == ' ')
-        die("unexpected space")
-
-    if (*in == '\n') {
-        state_fns[state_index] = prefix_newline;
-        prefix_newline();
-        return;
-    }
-
-    if ((prefix_fn = lookup_prefix(*in))) {
-        prefix_fn();
-        return;
-    }
-
-    read_token();
-    is_neoteric();
-}
-
-
-void
-prefix_newline(void)
-{
-    if (*in == '\0') {
-        strncpy(token_buffer, "", 256);
-        return;
-    }
-
-    if (*in != '\n') {
-        die("internal error: bad indent state");
-    }
-
-    in += 1;
-
-    state_fns[state_index] = prefix_indent;
-
-    strncpy(token_buffer, "newline", 256);
-
-    return;
-}
-
-
-void
-prefix_indent(void)
-{
-    if (parse_indent()) {
-        strncpy(token_buffer, "newline", 256);
-        return;
-    }
-
-    int diff = new_indent - cur_indent;
-
-    peek_token();
-
-    if (!strcmp("\\", token_buffer)) {
-        if (diff > 1) {
-            die("indented more than one level");
-        } else if (diff == 1) {
-            new_indent = cur_indent;
-            read_token();
-            state_fns[state_index] = prefix_body;
-            prefix_body();
-            return;
-        } else if (diff == 0) {
-            die("line continuation \\ must be indented one level");
-        } else {
-            die("line continuation \\ must be indented one level");
-        }
-    }
-
-    if (diff > 1) {
-        die("indented more than one level");
-    } else if (diff == 1) {
-        cur_indent = new_indent;
-        state_fns[state_index] = prefix_end;
-        push_state(prefix_head);
-        prefix_head();
-        return;
-    }
-
-    state_fns[state_index] = prefix_end;
-    prefix_end();
-}
-
-
-void
-prefix_end(void)
-{
-    strncpy(token_buffer, "]", 256);
-
-    if (new_indent == cur_indent) {
-        state_fns[state_index] = prefix_head;
-    } else if (new_indent < cur_indent) {
-        cur_indent  -= 1;
-        state_index -= 1;
-    } else {
-        die("internal error: bad indent state");
-    }
-
-    return;
-}
-
-
-void
-prefix_head(void)
-{
-    peek_token();
-
-    if (*in == '\0') {
-        if(cur_indent) {
-            new_indent = 0;
-            state_fns[state_index] = prefix_end;
-            prefix_end();
-            return;
-        }
-
-        token_buffer[0] = '\0';
-        return;
-    }
-
-    strncpy(token_buffer, "[", 256);
-    state_fns[state_index] = prefix_body;
-}
-
-
-void
+static void
 inline_open(void)
 {
     char c = *in;
+    const char *tok = in;
 
     in += 1;
-    chomp(' ');
-
-    token_buffer[0] = c;
-    token_buffer[1] = '\0';
+    take(tok);
     push_state(inline_body);
     state_close[state_index] = ")]}"[strchr("([{", c) - "([{"];
 }
 
 
-void
+static void
 inline_close(void)
 {
-    char c = *in;
+    const char *tok = in;
 
-    if (state_fns[state_index] != inline_body || state_close[state_index] != c)
-        die("unexpected '%c'", c);
+    if (state_fns[state_index] != inline_body || state_close[state_index] != *in)
+        die("unexpected '%c'", *in);
 
     in += 1;
-    chomp(' ');
-
-    token_buffer[0] = c;
-    token_buffer[1] = '\0';
+    take(tok);
     state_index -= 1;
 }
 
 
-void
+/* one token from the middle of a line */
+static void
+read_item(void)
+{
+    switch (*in) {
+    case '(': case '[': case '{': inline_open();  break;
+    case ')': case ']': case '}': inline_close(); break;
+    case '"':                     read_string();  break;
+    default:                      read_word();    break;
+    }
+}
+
+
+static void
 inline_body(void)
 {
-    void_fn *prefix_fn = NULL;
-
     if (*in == '\n' || *in == '\0')
         die("unclosed '%c' at end of line", "([{"[strchr(")]}", state_close[state_index]) - ")]}"]);
 
-    if ((prefix_fn = lookup_prefix(*in))) {
-        prefix_fn();
+    read_item();
+}
+
+
+static void
+neoteric(void)
+{
+    set_state(neoteric_end);
+    inline_body();
+}
+
+
+static void
+neoteric_end(void)
+{
+    emit("]");
+    state_index -= 1;
+}
+
+
+/* start of a line: open its [ */
+static void
+prefix_head(void)
+{
+    if (*in != '\0') {
+        emit("[");
+        set_state(prefix_body);
         return;
     }
 
-    read_token();
-    is_neoteric();
-}
-
-
-void_fn *
-lookup_prefix(char c)
-{
-    int i;
-    for (i = 0; i < prefix_index; i += 1)
-        if (c == prefix_chars[i])
-            return prefix_fns[i];
-    return NULL;
-}
-
-
-void
-define_prefix(char c, void (*fn)(void))
-{
-    int max_size = sizeof(prefix_chars);
-
-    if (prefix_index >= max_size)
-        die("prefix overflow");
-
-    prefix_chars[prefix_index] = c;
-    prefix_fns[prefix_index]   = fn;
-    prefix_index += 1;
-}
-
-
-char *
-next_word(void)
-{
-    void_fn *fn;
-
-
-    if (next_token_buffer[0] != '\0') {
-        strncpy(token_buffer, next_token_buffer, 256);
-        next_token_buffer[0] = '\0';
-        return token_buffer;
+    /* EOF */
+    if (cur_indent) {
+        new_indent = 0;
+        set_state(prefix_end);
+        prefix_end();
+        return;
     }
-
-    if (state_index < 0) {
-        debug_stack();
-        die("state underflow");
-    }
-
-    if ((fn = state_fns[state_index]) == NULL)
-        die("fn is NULL");
-
-    fn();
-    return token_buffer;
-}
-
-
-/* reset all global state so ie_tokenize() can be called repeatedly */
-static void
-ie__reset(void)
-{
-    cur_indent = 0;
-    new_indent = 0;
-    line_buffer[0] = '\0';
     token_buffer[0] = '\0';
-    next_token_buffer[0] = '\0';
+}
 
-    prefix_index = 0;
-    define_prefix('[', inline_open);
-    define_prefix(']', inline_close);
-    define_prefix('(', inline_open);
-    define_prefix(')', inline_close);
-    define_prefix('{', inline_open);
-    define_prefix('}', inline_close);
-    define_prefix('"', read_string);
 
-    in = line_buffer;
-    state_index = 0;
-    state_fns[state_index] = prefix_head;
+static void
+prefix_body(void)
+{
+    if (*in == '\0') {
+        /* EOF: unwind every open indent level */
+        new_indent = 0;
+        set_state(prefix_end);
+        prefix_end();
+        return;
+    }
+
+    if (*in == '\n') {
+        in += 1;
+        set_state(prefix_indent);
+        emit("newline");
+        return;
+    }
+
+    read_item();
+}
+
+
+/* after a newline: blank line, continuation, child, or close */
+static void
+prefix_indent(void)
+{
+    int diff;
+
+    if (parse_indent()) {
+        emit("newline");
+        return;
+    }
+
+    diff = new_indent - cur_indent;
+    if (diff > 1)
+        die("indented more than one level");
+
+    if (in[0] == '\\' && strchr(breakchars, in[1])) {
+        if (diff != 1)
+            die("line continuation \\ must be indented one level");
+        in += 1;
+        chomp(' ');
+        set_state(prefix_body);
+        prefix_body();
+        return;
+    }
+
+    if (diff == 1) {
+        cur_indent = new_indent;
+        set_state(prefix_end);
+        push_state(prefix_head);
+        prefix_head();
+        return;
+    }
+
+    set_state(prefix_end);
+    prefix_end();
+}
+
+
+/* close a line's [ and either start the next sibling or pop a level */
+static void
+prefix_end(void)
+{
+    emit("]");
+
+    if (new_indent < cur_indent) {
+        cur_indent -= 1;
+        state_index -= 1;
+    } else {
+        set_state(prefix_head);
+    }
 }
 
 
@@ -588,20 +386,34 @@ ie_tokenize(FILE *input, Ie_Token_Fn on_token, void *user)
         return 1;   /* a die() landed here */
 
     f = input;
-    ie__reset();
+    line_buffer[0] = '\0';
+    in = line_buffer;
+    next_token_buffer[0] = '\0';
+    cur_indent = 0;
+    new_indent = 0;
+    state_index = 0;
+    state_fns[0] = prefix_head;
 
     while (parse_indent())   /* leading blank lines */
         on_token("newline", user);
     if (new_indent != 0)
         die("first line must not be indented");
 
-    while (next_word(), token_buffer[0] != '\0')
-        on_token(token_buffer, user);
+    for (;;) {
+        if (next_token_buffer[0] != '\0') {
+            strcpy(token_buffer, next_token_buffer);
+            next_token_buffer[0] = '\0';
+        } else {
+            state_fns[state_index]();
+        }
 
-    if (state_index) {
-        debug_stack();
-        die("unexpected end of input");
+        if (token_buffer[0] == '\0')
+            break;
+        on_token(token_buffer, user);
     }
+
+    if (state_index)
+        die("unexpected end of input");
 
     return 0;
 }
@@ -632,8 +444,6 @@ ie_tokenize_path(const char *path, Ie_Token_Fn on_token, void *user)
 #undef RED_TEXT
 #undef RESET
 #undef die
-#undef debug_var
-#undef LIST_OF_STATES
+#undef INDENT
 
 #endif /* IE_IMPLEMENTATION */
-
