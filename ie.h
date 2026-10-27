@@ -79,6 +79,7 @@ static char *token_breakchars = " ,()[]{}\n";
 
 static int state_index = 0;
 static void (*state_fns[16])(void);
+static char state_close[16];   /* closer expected by an inline_body state */
 
 void_fn * lookup_prefix(char c);
 
@@ -91,12 +92,6 @@ char* next_word(void);
     X(prefix_indent) \
     X(prefix_end) \
     X(inline_body) \
-    X(inline_prefix) \
-    X(inline_prefix_end) \
-    X(inline_infix) \
-    X(inline_infix_end) \
-    X(inline_postfix) \
-    X(inline_postfix_end) \
     X(neoteric) \
     X(neoteric_end)
 
@@ -267,17 +262,21 @@ parse_indent(void)
     char *first_char = NULL;
     uint diff = 0;
 
-    if (*in == '\0')
-        read_line();
-
-    while(*in == '\n')
-        if (read_line() == NULL) {
+    /* skip blank lines, including ones that are only spaces */
+    for (;;) {
+        if (*in == '\0' && read_line() == NULL) {
             new_indent = 0;
             return;
         }
 
-    first_char = in;
-    chomp(' ');
+        first_char = in;
+        chomp(' ');
+
+        if (*in == '\n')
+            in += 1;
+        else if (*in != '\0')
+            break;
+    }
 
     diff = in - first_char;
     if (diff % indent_width != 0)
@@ -322,7 +321,8 @@ prefix_body(void)
     void (*prefix_fn)(void) = NULL;
 
     if (*in == '\0') {
-        /* EOF */
+        /* EOF: unwind every open indent level */
+        new_indent = 0;
         state_fns[state_index] = prefix_end;
         prefix_end();
         return;
@@ -452,57 +452,34 @@ prefix_head(void)
 
 
 void
-inline_prefix(void)
+inline_open(void)
 {
+    char c = *in;
+
     in += 1;
     chomp(' ');
 
-    strncpy(token_buffer, "[", 256);
+    token_buffer[0] = c;
+    token_buffer[1] = '\0';
     push_state(inline_body);
+    state_close[state_index] = ")]}"[strchr("([{", c) - "([{"];
 }
 
 
 void
-inline_prefix_end(void)
+inline_close(void)
 {
+    char c = *in;
+
+    if (state_fns[state_index] != inline_body || state_close[state_index] != c)
+        die("unexpected '%c'", c);
+
     in += 1;
     chomp(' ');
 
-    strncpy(token_buffer, "]", 256);
+    token_buffer[0] = c;
+    token_buffer[1] = '\0';
     state_index -= 1;
-    return;
-}
-
-
-void
-inline_infix(void)
-{
-    in += 1;
-    chomp(' ');
-
-    strncpy(token_buffer, "(", 256);
-    push_state(inline_body);
-}
-
-
-void
-inline_infix_end(void)
-{
-    in += 1;
-    chomp(' ');
-
-    strncpy(token_buffer, ")", 256);
-    state_index -= 1;
-}
-
-
-void
-inline_postfix(void)
-{
-    in += 1;
-    chomp(' ');
-    strncpy(token_buffer, "{", 256);
-    push_state(inline_body);
 }
 
 
@@ -511,6 +488,8 @@ inline_body(void)
 {
     void_fn *prefix_fn = NULL;
 
+    if (*in == '\n' || *in == '\0')
+        die("unclosed '%c' at end of line", "([{"[strchr(")]}", state_close[state_index]) - ")]}"]);
 
     if ((prefix_fn = lookup_prefix(*in))) {
         prefix_fn();
@@ -519,16 +498,6 @@ inline_body(void)
 
     read_token();
     is_neoteric();
-}
-
-
-void
-inline_postfix_end(void)
-{
-    in += 1;
-    chomp(' ');
-    state_index -= 1;
-    strncpy(token_buffer, "}", 256);
 }
 
 
@@ -593,12 +562,12 @@ ie__reset(void)
     next_token_buffer[0] = '\0';
 
     prefix_index = 0;
-    define_prefix('[', inline_prefix);
-    define_prefix(']', inline_prefix_end);
-    define_prefix('(', inline_infix);
-    define_prefix(')', inline_infix_end);
-    define_prefix('{', inline_postfix);
-    define_prefix('}', inline_postfix_end);
+    define_prefix('[', inline_open);
+    define_prefix(']', inline_close);
+    define_prefix('(', inline_open);
+    define_prefix(')', inline_close);
+    define_prefix('{', inline_open);
+    define_prefix('}', inline_close);
     define_prefix('"', read_string);
 
     in = line_buffer;
@@ -615,6 +584,10 @@ ie_tokenize(FILE *input, Ie_Token_Fn on_token, void *user)
 
     f = input;
     ie__reset();
+
+    parse_indent();   /* skip leading blank lines */
+    if (new_indent != 0)
+        die("first line must not be indented");
 
     while (next_word(), token_buffer[0] != '\0')
         on_token(token_buffer, user);

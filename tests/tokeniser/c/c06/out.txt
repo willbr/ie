@@ -1,7 +1,4 @@
 [
-newline
-]
-[
 include-lib
 "stdio.h"
 newline

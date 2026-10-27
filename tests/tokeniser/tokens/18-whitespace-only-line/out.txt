@@ -1,0 +1,12 @@
+[
+a
+newline
+[
+b
+newline
+]
+[
+c
+newline
+]
+]

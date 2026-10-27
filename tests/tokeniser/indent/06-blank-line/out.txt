@@ -7,9 +7,6 @@ nop
 newline
 ]
 [
-newline
-]
-[
 nop
 newline
 ]

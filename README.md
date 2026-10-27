@@ -63,6 +63,10 @@ For each token, read the first char:
 
 Brackets group: `[ ]` prefix, `( )` infix, `{ }` rpn.
 
+A bracket must close on the line it opened, and must close with its own
+kind: `f(a` at end of line and `[a)` are errors. Use `\` to continue a
+line. Blank lines, including ones that are only spaces, are skipped.
+
 ## roadmap
 
 Designed but not implemented in `parse.c` yet:
