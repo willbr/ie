@@ -160,9 +160,11 @@ chomp(char c)
 char *
 read_line(void)
 {
-    char *r = fgets(line_buffer, 256, f);
+    char *r = fgets(line_buffer, sizeof(line_buffer), f);
     if (r == NULL)
         line_buffer[0] = '\0';
+    else if (!strchr(line_buffer, '\n') && getc(f) != EOF)
+        die("line too long (max %d chars)", (int)sizeof(line_buffer) - 2);
     in = &line_buffer[0];
     return r;
 }
@@ -175,8 +177,10 @@ read_token(void)
     int tok_len = 0;
 
     if (*in == '\0')
-        if (!read_line())
+        if (!read_line()) {
+            token_buffer[0] = '\0';   /* EOF: end the token stream */
             return;
+        }
 
     tok = in;
 
@@ -211,8 +215,10 @@ read_string(void)
 
 
     if (*in == '\0')
-        if (!read_line())
+        if (!read_line()) {
+            token_buffer[0] = '\0';   /* EOF: end the token stream */
             return;
+        }
 
     tok = in;
 
