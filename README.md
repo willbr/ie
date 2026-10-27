@@ -21,6 +21,7 @@ through it:
     ./build run [file]       # run the parser on a file
     ./build test             # run the golden-file tests
     ./build bless            # regenerate test fixtures from current output
+    ./build fuzz [n]         # try every input up to n symbols under ASan/UBSan
     ./build clean            # remove build artifacts
 
 `build.c` rebuilds itself when edited. Works on Linux, macOS, and Windows

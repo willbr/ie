@@ -9,6 +9,7 @@
  *     ./build run [file]   build the parser and run it on a file
  *     ./build test         build and run the golden-file tests
  *     ./build bless        regenerate the test fixtures from current output
+ *     ./build fuzz [n]     exhaustively fuzz all inputs up to n symbols (default 5)
  *     ./build clean        remove build artifacts
  *
  * Editing build.c is enough — nob rebuilds it before running.
@@ -18,6 +19,7 @@
 
 #define PARSE "out/parse"
 #define TEST  "out/test"
+#define FUZZ  "out/fuzz"
 #define DEFAULT_F "tests/tokeniser/c/c00-hello-world/in.txt"
 
 
@@ -70,14 +72,29 @@ main(int argc, char **argv)
         Nob_Cmd cmd = {0};
         nob_cmd_append(&cmd, TEST, "bless");
         return nob_cmd_run(&cmd) ? 0 : 1;
+    } else if (strcmp(sub, "fuzz") == 0) {
+        if (!nob_mkdir_if_not_exists("out")) return 1;
+        Nob_Cmd cmd = {0};
+        nob_cc(&cmd);
+        nob_cc_flags(&cmd);
+#ifndef _MSC_VER
+        nob_cmd_append(&cmd, "-g", "-O1", "-fsanitize=address,undefined", "-fno-sanitize-recover=all");
+#endif
+        nob_cc_output(&cmd, FUZZ);
+        nob_cc_inputs(&cmd, "fuzz.c");
+        if (!nob_cmd_run(&cmd)) return 1;
+        nob_cmd_append(&cmd, FUZZ);
+        if (argc > 2) nob_cmd_append(&cmd, argv[2]);
+        return nob_cmd_run(&cmd) ? 0 : 1;
     } else if (strcmp(sub, "clean") == 0) {
         rm("out/parse");      rm("out/parse.exe");
         rm("out/test");       rm("out/test.exe");
+        rm("out/fuzz");       rm("out/fuzz.exe");
         rm("out/.captured");  rm("out/.stderr");
         rm("build.old");      rm("build.old.exe");
     } else {
         nob_log(NOB_ERROR, "unknown command: %s", sub);
-        nob_log(NOB_INFO, "usage: ./build [all|run [file]|test|bless|clean]");
+        nob_log(NOB_INFO, "usage: ./build [all|run [file]|test|bless|fuzz [n]|clean]");
         return 1;
     }
 
